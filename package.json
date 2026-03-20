@@ -1,0 +1,23 @@
+{
+  "name": "stop-the-bus",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Multiplayer word game - Stop the Bus",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "setup": "cp apps/server/.env.example apps/server/.env && cp apps/mobile/.env.example apps/mobile/.env",
+    "postinstall": "npm run setup",
+    "redis:up": "docker-compose up -d",
+    "redis:stop": "docker-compose stop",
+    "redis:seed": "npm run seed --workspace=@stop-the-bus/server",
+    "server:dev": "npm run dev --workspace=@stop-the-bus/server",
+    "mobile:start": "npm run start --workspace=@stop-the-bus/mobile",
+    "db:flush": "docker exec -it stb_redis redis-cli FLUSHALL"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.0"
+  }
+}
