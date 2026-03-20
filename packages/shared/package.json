@@ -1,0 +1,6 @@
+{
+  "name": "@stop-the-bus/shared",
+  "version": "1.0.0",
+  "main": "index.js",
+  "description": "Shared utilities and constants for Stop the Bus"
+}
