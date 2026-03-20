@@ -15,6 +15,7 @@ This file contains all server and shared package code in one consolidated view.
       ├── index.js                           (Event handler registration)
       ├── createRoom.js                      (CREATE_ROOM event)
       ├── joinRoom.js                        (JOIN_ROOM event)
+      ├── startGame.js                       (START_GAME event)
       └── disconnect.js                      (disconnect event)
 
 📁 packages/shared/
@@ -29,6 +30,11 @@ This file contains all server and shared package code in one consolidated view.
       │   ├── getHost.js                     (Get current host/driver)
       │   ├── getRoomFromCode.js             (Look up roomId from code)
       │   ├── getRoomStatus.js               (Get room status)
+      │   ├── getRound.js                    (Get current round number)
+      │   ├── updateRoomStatus.js            (Update room status)
+      │   ├── setLetter.js                   (Set current letter)
+      │   ├── getUsedLetters.js              (Get all used letters)
+      │   ├── addUsedLetter.js               (Add letter to used set)
       │   ├── getRoomIdForUser.js            (Reconnection helper - stub)
       │   └── cleanupRoom.js                 (Atomic room cleanup)
       └── player/
@@ -114,6 +120,7 @@ FILE: apps/server/src/eventHandlers/index.js
 const createRoom = require("./createRoom");
 const joinRoom = require("./joinRoom");
 const disconnect = require("./disconnect");
+const startGame = require("./startGame");
 
 /**
  * Register all socket.io event handlers
@@ -132,6 +139,7 @@ const registerSocketHandlers = (io) => {
       "JOIN_ROOM",
       joinRoom(socket, io, pendingDisconnects, userSocketMap),
     );
+    socket.on("START_GAME", startGame(socket, io));
     socket.on(
       "disconnect",
       disconnect(socket, io, pendingDisconnects, userSocketMap),
@@ -355,7 +363,127 @@ module.exports = joinRoom;
 
 
 ================================================================================
-                     PART 5: DISCONNECT EVENT HANDLER
+                   PART 5: START_GAME EVENT HANDLER
+================================================================================
+
+FILE: apps/server/src/eventHandlers/startGame.js
+────────────────────────────────────────────────────────────────────────────
+
+const { RedisService } = require("@stop-the-bus/shared/redis");
+const {
+  RoomNotFoundError,
+  NotHostError,
+  InsufficientPlayersError,
+  NoLettersAvailableError,
+} = require("@stop-the-bus/shared/errors");
+
+// Generate a random letter that hasn't been used in this game yet
+const getRandomUnusedLetter = async (roomId) => {
+  const allLetters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+
+  // Get previously used letters in this room
+  const usedLetters = await RedisService.getUsedLetters(roomId);
+
+  // Filter out used letters
+  const availableLetters = allLetters.filter(
+    (letter) => !usedLetters.includes(letter),
+  );
+
+  if (availableLetters.length === 0) {
+    throw new NoLettersAvailableError();
+  }
+
+  // Pick a random letter from available
+  const randomLetter =
+    availableLetters[Math.floor(Math.random() * availableLetters.length)];
+
+  // Add to used letters
+  await RedisService.addUsedLetter(roomId, randomLetter);
+
+  return randomLetter;
+};
+
+// Event: Start the Game (Host only)
+const startGame = (socket, io) => {
+  return async () => {
+    try {
+      const roomId = socket.currentRoom;
+      const userId = socket.currentUserId;
+
+      if (!roomId || !userId) {
+        socket.emit("ERROR", {
+          code: "INVALID_STATE",
+          message: "Not in a room",
+        });
+        return;
+      }
+
+      // 1. Verify the requester is the host
+      const hostId = await RedisService.getHost(roomId);
+      if (!hostId) {
+        throw new RoomNotFoundError();
+      }
+      if (userId !== hostId) {
+        console.log(
+          `⛔ Non-host (${userId}) attempted to start game in room ${roomId}`,
+        );
+        throw new NotHostError();
+      }
+
+      // 2. Get current room status
+      const roomStatus = await RedisService.getRoomStatus(roomId);
+      if (roomStatus !== "WAITING") {
+        throw new Error("Game already in progress");
+      }
+
+      // 3. Verify at least 2 players before starting
+      const players = await RedisService.getPlayers(roomId);
+      if (players.length < 2) {
+        throw new InsufficientPlayersError();
+      }
+
+      // 4. Get current round
+      const currentRound = await RedisService.getRound(roomId);
+      if (!currentRound) {
+        throw new Error("Could not retrieve round number");
+      }
+
+      // 5. Select a random letter that hasn't been used
+      const letter = await getRandomUnusedLetter(roomId);
+
+      // 6. Update the Redis room status to PLAYING and set the letter
+      await RedisService.updateRoomStatus(roomId, "PLAYING");
+      await RedisService.setLetter(roomId, letter);
+
+      console.log(
+        `🎮 Game started in room ${roomId} | Round: ${currentRound} | Letter: ${letter}`,
+      );
+
+      // 7. Emit ROUND_START to the room with letter and round number
+      io.to(roomId).emit("ROUND_START", {
+        letter,
+        round: parseInt(currentRound),
+      });
+    } catch (err) {
+      console.error("🚨 Start Game Error:", {
+        userId: socket.currentUserId,
+        roomId: socket.currentRoom,
+        error: err.message,
+        code: err.code,
+      });
+      socket.emit("ERROR", {
+        code: err.code || "START_GAME_FAILED",
+        message: err.message || "Could not start the game",
+      });
+    }
+  };
+};
+
+module.exports = startGame;
+
+
+================================================================================
+                     PART 6: DISCONNECT EVENT HANDLER
 ================================================================================
 
 FILE: apps/server/src/eventHandlers/disconnect.js
@@ -419,7 +547,7 @@ module.exports = disconnect;
 
 
 ================================================================================
-                      PART 6: REDIS CLIENT INITIALIZATION
+                      PART 7: REDIS CLIENT INITIALIZATION
 ================================================================================
 
 FILE: packages/shared/redis/client.js
@@ -454,7 +582,7 @@ module.exports = { client, connectRedis };
 
 
 ================================================================================
-                     PART 7: REDIS SERVICE INDEX/EXPORTS
+                     PART 8: REDIS SERVICE INDEX/EXPORTS
 ================================================================================
 
 FILE: packages/shared/redis/index.js
@@ -466,6 +594,11 @@ const getHost = require("./room/getHost");
 const getRoomFromCode = require("./room/getRoomFromCode");
 const getRoomStatus = require("./room/getRoomStatus");
 const getRoomIdForUser = require("./room/getRoomIdForUser");
+const getRound = require("./room/getRound");
+const updateRoomStatus = require("./room/updateRoomStatus");
+const setLetter = require("./room/setLetter");
+const getUsedLetters = require("./room/getUsedLetters");
+const addUsedLetter = require("./room/addUsedLetter");
 const cleanupRoom = require("./room/cleanupRoom");
 const getPlayers = require("./player/getPlayers");
 const getPlayersWithNicknames = require("./player/getPlayersWithNicknames");
@@ -482,6 +615,11 @@ const RedisService = {
   getRoomFromCode,
   getRoomStatus,
   getRoomIdForUser,
+  getRound,
+  updateRoomStatus,
+  setLetter,
+  getUsedLetters,
+  addUsedLetter,
   cleanupRoom,
   getPlayers,
   getPlayersWithNicknames,
@@ -494,7 +632,7 @@ module.exports = { client, connectRedis, RedisService };
 
 
 ================================================================================
-                    PART 8: REDIS ROOM OPERATIONS
+                    PART 9: REDIS ROOM OPERATIONS
 ================================================================================
 
 FILE: packages/shared/redis/room/createRoom.js
@@ -522,7 +660,10 @@ const createRoom = async (roomId, hostId, roomCode) => {
   // 4. Set expiry on player list (same as room)
   await client.expire(`room:${roomId}:players`, 86400);
 
-  // 5. Store code -> roomId mapping for easy lookup with 24 hour expiry
+  // 5. Initialize usedLetters set with 24h expiry
+  await client.expire(`room:${roomId}:usedLetters`, 86400);
+
+  // 6. Store code -> roomId mapping for easy lookup with 24 hour expiry
   await client.set(`code:${roomCode}`, roomId, { EX: 86400 });
 };
 
@@ -568,6 +709,73 @@ const getRoomStatus = async (roomId) => {
 module.exports = getRoomStatus;
 
 
+FILE: packages/shared/redis/room/getRound.js
+────────────────────────────────────────────────────────────────────────────
+
+const { client } = require("../client");
+
+// Get the current round number for a room
+const getRound = async (roomId) => {
+  return await client.hGet(`room:${roomId}`, "round");
+};
+
+module.exports = getRound;
+
+
+FILE: packages/shared/redis/room/updateRoomStatus.js
+────────────────────────────────────────────────────────────────────────────
+
+const { client } = require("../client");
+
+// Update the room status (WAITING, PLAYING, SCRAMBLE, SCORING)
+const updateRoomStatus = async (roomId, status) => {
+  await client.hSet(`room:${roomId}`, "status", status);
+};
+
+module.exports = updateRoomStatus;
+
+
+FILE: packages/shared/redis/room/setLetter.js
+────────────────────────────────────────────────────────────────────────────
+
+const { client } = require("../client");
+
+// Set the current letter for the round
+const setLetter = async (roomId, letter) => {
+  await client.hSet(`room:${roomId}`, "letter", letter);
+};
+
+module.exports = setLetter;
+
+
+FILE: packages/shared/redis/room/getUsedLetters.js
+────────────────────────────────────────────────────────────────────────────
+
+const { client } = require("../client");
+
+// Get all letters that have been used in this game
+const getUsedLetters = async (roomId) => {
+  return await client.sMembers(`room:${roomId}:usedLetters`);
+};
+
+module.exports = getUsedLetters;
+
+
+FILE: packages/shared/redis/room/addUsedLetter.js
+────────────────────────────────────────────────────────────────────────────
+
+const { client } = require("../client");
+
+// Add a letter to the used letters set for this game
+const addUsedLetter = async (roomId, letter) => {
+  await client.sAdd(`room:${roomId}:usedLetters`, letter);
+  // Set same TTL as room (24 hours)
+  await client.expire(`room:${roomId}:usedLetters`, 86400);
+};
+
+module.exports = addUsedLetter;
+
+
 FILE: packages/shared/redis/room/getRoomIdForUser.js
 ────────────────────────────────────────────────────────────────────────────
 
@@ -603,7 +811,7 @@ module.exports = cleanupRoom;
 
 
 ================================================================================
-                    PART 9: REDIS PLAYER OPERATIONS
+                    PART 10: REDIS PLAYER OPERATIONS
 ================================================================================
 
 FILE: packages/shared/redis/player/getPlayers.js
@@ -708,7 +916,7 @@ module.exports = removePlayer;
 
 
 ================================================================================
-                   PART 10: INPUT VALIDATORS
+                   PART 11: INPUT VALIDATORS
 ================================================================================
 
 FILE: packages/shared/validators.js
@@ -766,7 +974,7 @@ module.exports = {
 
 
 ================================================================================
-                      PART 11: CUSTOM ERROR TYPES
+                      PART 12: CUSTOM ERROR TYPES
 ================================================================================
 
 FILE: packages/shared/errors.js
@@ -808,12 +1016,33 @@ class NicknameTakenError extends SocketError {
   }
 }
 
+class NotHostError extends SocketError {
+  constructor() {
+    super("NOT_HOST", "Only the host can perform this action");
+  }
+}
+
+class InsufficientPlayersError extends SocketError {
+  constructor() {
+    super("INSUFFICIENT_PLAYERS", "Need at least 2 players to start the game");
+  }
+}
+
+class NoLettersAvailableError extends SocketError {
+  constructor() {
+    super("NO_LETTERS_AVAILABLE", "All letters have been used in this game");
+  }
+}
+
 module.exports = {
   SocketError,
   RoomNotFoundError,
   RoomNotWaitingError,
   InvalidInputError,
   NicknameTakenError,
+  NotHostError,
+  InsufficientPlayersError,
+  NoLettersAvailableError,
 };
 
 
@@ -827,7 +1056,7 @@ EVENT FLOW:
 1. CLIENT → SERVER: CREATE_ROOM { userId, nickname }
    - Server validates inputs
    - Generates random 5-digit code
-   - Creates room in Redis with 24h TTL
+   - Creates room in Redis with 24h TTL + initializes usedLetters set
    - Store player metadata
    - Join Socket.io room
    → SERVER → CLIENT: ROOM_CREATED { roomCode, roomId }
@@ -842,7 +1071,16 @@ EVENT FLOW:
    - Join Socket.io room
    → SERVER → ALL: PASSENGER_JOINED { playerId, nickname, isDriver: boolean }
 
-3. CLIENT: [Network disconnect]
+3. CLIENT → SERVER: START_GAME (Host only)
+   - Server verifies requester is host
+   - Checks room is in WAITING status
+   - Verifies minimum 2 players present
+   - Selects random unused letter (A-Z)
+   - Updates room status to PLAYING
+   - Stores letter in Redis
+   → SERVER → ALL: ROUND_START { letter, round }
+
+4. CLIENT: [Network disconnect]
    - Server triggers 5-second grace period
    - If CLIENT reconnects within 5s via JOIN_ROOM:
      → Restores connection (socket mapping updated)
@@ -857,7 +1095,7 @@ REDIS SCHEMA:
 ─────────────
 
 room:{roomCode}:
-  - hash: { host_id, status, round, code, created_at }
+  - hash: { host_id, status, round, code, letter, created_at }
   - ttl: 24 hours
 
 room:{roomCode}:players
@@ -866,9 +1104,13 @@ room:{roomCode}:players
 
 room:{roomCode}:player:{userId}
   - hash: { nickname, joinedAt }
-  - (no separate ttl - inherits from parent room)
+  - (inherited parentttl)
 
-code:{roomCode}
+room:{roomCode}:usedLetters
+  - set: {"A", "B", "C", ...}  (letters used so far)
+  - ttl: 24 hours
+
+code:{ROOMCODE}
   - string: roomId (for quick lookup)
   - ttl: 24 hours
 
@@ -892,9 +1134,42 @@ NICKNAME_TAKEN
   - Another player in room has same nickname
   - Status: Prompt user to choose different nickname
 
-CREATE_ROOM_FAILED / JOIN_ROOM_FAILED
+NOT_HOST
+  - Non-host attempted privileged action (e.g., start game)
+  - Status: Inform user only host can perform action
+
+INSUFFICIENT_PLAYERS
+  - Fewer than 2 players in room
+  - Status: Wait for more players to join
+
+NO_LETTERS_AVAILABLE
+  - All 26 letters have been used
+  - Status: Show message, game cannot continue
+
+CREATE_ROOM_FAILED / JOIN_ROOM_FAILED / START_GAME_FAILED
   - Generic errors (see message for details)
-  - Status: Log error, show generic message
+  - Status: Log error, show generic message to user
+
+
+GAME STATE TRANSITIONS:
+───────────────────────
+
+WAITING
+  ├─→ (CREATE_ROOM) → Room created
+  ├─→ (JOIN_ROOM) → Player joined
+  └─→ (START_GAME) → Transitions to PLAYING
+
+PLAYING
+  ├─→ (ROUND_START broadcasted) → Round begins
+  └─→ (STOP_CLICKED) → Transitions to SCRAMBLE
+
+SCRAMBLE
+  ├─→ (3s timer) → Players submit words
+  └─→ (SUBMIT_WORDS) → Transitions to SCORING
+
+SCORING
+  ├─→ (ROUND_RESULTS broadcasted) → Results shown
+  └─→ (Round < 5) → Back to WAITING OR (Round = 5) → GAME_OVER
 
 
 MEMORY MANAGEMENT:
@@ -929,6 +1204,7 @@ Tests:
   □ Unit tests for error types
   □ E2E test: Room creation flow
   □ E2E test: Multi-player join
+  □ E2E test: START_GAME with validation
   □ E2E test: Disconnection + reconnection within grace period
   □ E2E test: Disconnection + grace period expiry
   □ E2E test: Host migration on disconnect
@@ -937,7 +1213,7 @@ Monitoring:
   □ Set up logging aggregation (CloudLogging, Datadog, etc.)
   □ Monitor Redis connection status
   □ Alert on error rate > threshold
-  □ Track room lifecycle (created, closed, expired)
+  □ Track room lifecycle (created, started, closed, expired)
 
 Performance:
   □ Load test with 100+ concurrent players

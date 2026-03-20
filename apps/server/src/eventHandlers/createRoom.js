@@ -1,13 +1,34 @@
 const { RedisService } = require("@stop-the-bus/shared/redis");
+const { client } = require("@stop-the-bus/shared/redis");
 const {
   validateUserId,
   validateNickname,
 } = require("@stop-the-bus/shared/validators");
 const { InvalidInputError } = require("@stop-the-bus/shared/errors");
 
-// Generate a random 5-digit room code
-const generateRoomCode = () => {
-  return Math.floor(10000 + Math.random() * 90000).toString();
+// Generate a unique alphanumeric room code with collision detection
+const generateUniqueRoomCode = async () => {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  let code;
+  let attempts = 0;
+  const maxAttempts = 10;
+
+  do {
+    // Generate random 5-character alphanumeric code
+    code = "";
+    for (let i = 0; i < 5; i++) {
+      code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    attempts++;
+
+    // Check if code already exists in Redis
+    const exists = await client.exists(`code:${code}`);
+    if (!exists) {
+      return code;
+    }
+  } while (attempts < maxAttempts);
+
+  throw new Error("Could not generate unique room code after 10 attempts");
 };
 
 // Event: Create a new room (Host only)
@@ -25,7 +46,11 @@ const createRoom = (socket, io, userSocketMap) => {
         throw new InvalidInputError("nickname", nicknameValidation.error);
       }
 
-      const roomCode = generateRoomCode();
+      // Use sanitized nickname for storage
+      const cleanNickname = nicknameValidation.sanitized || nickname;
+
+      // Generate unique room code with collision detection
+      const roomCode = await generateUniqueRoomCode();
       const roomId = `room_${roomCode}`;
 
       // 2. Track userId -> socket.id mapping
@@ -34,22 +59,22 @@ const createRoom = (socket, io, userSocketMap) => {
       // 3. Create the room in Redis with the code (using userId, not socket.id)
       await RedisService.createRoom(roomId, userId, roomCode);
 
-      // 4. Store player metadata
-      await RedisService.setPlayerMetadata(roomId, userId, nickname);
+      // 4. Store player metadata with sanitized nickname
+      await RedisService.setPlayerMetadata(roomId, userId, cleanNickname);
 
       console.log(`✅ Host (${userId}) created room: ${roomCode}`);
 
       // 5. Join the Socket.io room immediately
       socket.currentRoom = roomId;
       socket.currentUserId = userId;
-      socket.nickname = nickname;
+      socket.nickname = cleanNickname;
       socket.join(roomId);
 
       // 6. Broadcast PASSENGER_JOINED so the creator sees themselves
       // (No need to call getHost again - we know userId is the host)
       io.to(roomId).emit("PASSENGER_JOINED", {
         playerId: userId,
-        nickname: nickname,
+        nickname: cleanNickname,
         isDriver: true,
       });
 

@@ -25,19 +25,26 @@ const validateNickname = (nickname) => {
   if (nickname.length > 50) {
     return { valid: false, error: "nickname too long (max 50 chars)" };
   }
-  // Prevent XSS with basic check
-  if (/<[^>]*>/.test(nickname)) {
-    return { valid: false, error: "nickname contains invalid characters" };
+  // Strip all non-alphanumeric characters for safety (XSS prevention)
+  const sanitized = nickname.replace(/[^a-zA-Z0-9]/g, "");
+  if (sanitized.length === 0) {
+    return {
+      valid: false,
+      error: "nickname must contain at least one letter or number",
+    };
   }
-  return { valid: true };
+  return { valid: true, sanitized };
 };
 
 const validateRoomCode = (roomCode) => {
   if (!roomCode || typeof roomCode !== "string") {
     return { valid: false, error: "roomCode must be a non-empty string" };
   }
-  if (!/^\d{5}$/.test(roomCode)) {
-    return { valid: false, error: "roomCode must be exactly 5 digits" };
+  if (!/^[A-Z0-9]{5}$/i.test(roomCode)) {
+    return {
+      valid: false,
+      error: "roomCode must be exactly 5 alphanumeric characters",
+    };
   }
   return { valid: true };
 };

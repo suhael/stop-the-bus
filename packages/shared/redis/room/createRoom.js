@@ -20,7 +20,10 @@ const createRoom = async (roomId, hostId, roomCode) => {
   // 4. Set expiry on player list (same as room)
   await client.expire(`room:${roomId}:players`, 86400);
 
-  // 5. Store code -> roomId mapping for easy lookup with 24 hour expiry
+  // 5. Initialize usedLetters set with 24h expiry
+  await client.expire(`room:${roomId}:usedLetters`, 86400);
+
+  // 6. Store code -> roomId mapping for easy lookup with 24 hour expiry
   await client.set(`code:${roomCode}`, roomId, { EX: 86400 });
 };
 

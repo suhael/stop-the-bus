@@ -24,9 +24,18 @@ const disconnect = (socket, io, pendingDisconnects, userSocketMap) => {
       );
 
       try {
+        // Check room status to determine if special handling is needed
+        const roomStatus = await RedisService.getRoomStatus(roomId);
+
         const newHostId = await RedisService.removePlayer(roomId, userId);
 
         if (newHostId) {
+          // If host left during active gameplay, notify all players
+          if (roomStatus === "PLAYING" || roomStatus === "SCRAMBLE") {
+            console.log(
+              `⚠️  Host left during ${roomStatus} phase. New host assigned: ${newHostId}`,
+            );
+          }
           io.to(roomId).emit("HOST_MIGRATED", { newHostId });
           console.log(`👑 Host Migrated to: ${newHostId}`);
         } else {
@@ -45,6 +54,13 @@ const disconnect = (socket, io, pendingDisconnects, userSocketMap) => {
 
         // Clean up user socket map to prevent memory leak
         userSocketMap.delete(userId);
+
+        // Also cleanup any orphaned entries (in case socket disconnected without userId)
+        for (const [id, socketId] of userSocketMap.entries()) {
+          if (socketId === socket.id) {
+            userSocketMap.delete(id);
+          }
+        }
       }
     }, 5000);
 

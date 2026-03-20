@@ -1,6 +1,7 @@
 const createRoom = require("./createRoom");
 const joinRoom = require("./joinRoom");
 const disconnect = require("./disconnect");
+const startGame = require("./startGame");
 
 /**
  * Register all socket.io event handlers
@@ -19,6 +20,7 @@ const registerSocketHandlers = (io) => {
       "JOIN_ROOM",
       joinRoom(socket, io, pendingDisconnects, userSocketMap),
     );
+    socket.on("START_GAME", startGame(socket, io));
     socket.on(
       "disconnect",
       disconnect(socket, io, pendingDisconnects, userSocketMap),

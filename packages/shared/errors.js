@@ -34,10 +34,31 @@ class NicknameTakenError extends SocketError {
   }
 }
 
+class NotHostError extends SocketError {
+  constructor() {
+    super("NOT_HOST", "Only the host can perform this action");
+  }
+}
+
+class InsufficientPlayersError extends SocketError {
+  constructor() {
+    super("INSUFFICIENT_PLAYERS", "Need at least 2 players to start the game");
+  }
+}
+
+class NoLettersAvailableError extends SocketError {
+  constructor() {
+    super("NO_LETTERS_AVAILABLE", "All letters have been used in this game");
+  }
+}
+
 module.exports = {
   SocketError,
   RoomNotFoundError,
   RoomNotWaitingError,
   InvalidInputError,
   NicknameTakenError,
+  NotHostError,
+  InsufficientPlayersError,
+  NoLettersAvailableError,
 };
