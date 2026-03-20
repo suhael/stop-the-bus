@@ -1,7 +1,7 @@
 const { RedisService } = require("@stop-the-bus/shared/redis");
 
 // Event: Stop the Bus - Triggered when a player finishes all categories
-const stopBus = (socket, io) => {
+const stopBus = (socket, io, roomScoringTimeouts) => {
   return async (payload) => {
     try {
       const roomId = socket.currentRoom;
@@ -57,6 +57,8 @@ const stopBus = (socket, io) => {
 
       // 5. Set server-side timeout for 3.5 seconds to trigger scoring
       // (Extra 0.5 seconds buffer to ensure all client messages arrive)
+      // CRITICAL: Store timeout in roomScoringTimeouts map, NOT on socket
+      // This ensures room progresses to scoring even if the STOP player disconnects
       const scoringTimeoutId = setTimeout(async () => {
         try {
           console.log(
@@ -75,12 +77,14 @@ const stopBus = (socket, io) => {
             `❌ Error transitioning to SCORING phase (${roomId}):`,
             err.message,
           );
+        } finally {
+          // Clean up the timeout reference from the map
+          roomScoringTimeouts.delete(roomId);
         }
       }, 3500);
 
-      // Store timeout ID in case we need to cancel (e.g., if all players disconnect)
-      // Could be extended to store in Redis if needed
-      socket.scoringTimeout = scoringTimeoutId;
+      // Store timeout in room map (survives socket disconnect)
+      roomScoringTimeouts.set(roomId, scoringTimeoutId);
     } catch (err) {
       console.error("🚨 Stop Bus Error:", {
         userId: socket.currentUserId,

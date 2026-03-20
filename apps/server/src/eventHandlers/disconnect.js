@@ -52,10 +52,9 @@ const disconnect = (socket, io, pendingDisconnects, userSocketMap) => {
         // Clean up memory - remove from grace period tracking
         pendingDisconnects.delete(userId);
 
-        // Clear any pending scoring timeout
-        if (socket.scoringTimeout) {
-          clearTimeout(socket.scoringTimeout);
-        }
+        // DO NOT clear socket.scoringTimeout here - let it survive the disconnect
+        // The room timeout belongs to the room, not the socket
+        // This prevents "Sabotage Disconnect" where closing app stops scoring
 
         // Clean up user socket map to prevent memory leak
         userSocketMap.delete(userId);

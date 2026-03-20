@@ -1,22 +1,25 @@
 /**
  * Calculate scores for all players based on their answers in a round
  *
+ * CRITICAL FIX: Now validates letter and uses per-category word frequency
+ *
  * @param {Object} playerAnswers - Object mapping playerId to their category answers
  *   Format: { "userId1": { "Name": "Alice", "Country": "France", ... }, ... }
+ * @param {string} letter - The current round letter (e.g. "A") - words must start with this
  * @param {string} speedBonusWinnerId - The userId of the player who clicked STOP
  *
  * @returns {Object} Object mapping playerId to their score
  *   Format: { "userId1": 25, "userId2": 15, ... }
  */
-const calculateScores = (playerAnswers, speedBonusWinnerId) => {
+const calculateScores = (playerAnswers, letter, speedBonusWinnerId) => {
   // Initialize result object
   const scores = {};
 
-  // Get all unique words across all players and categories
-  // Structure: { "word": [list of playerIds who used it], ... }
-  const wordFrequency = {};
+  // Word frequency tracking - NESTED BY CATEGORY for accurate uniqueness
+  // Structure: { "Name": { "alice": [playerIds], "bob": [...] }, "Country": { ... } }
+  const wordFrequencyByCategory = {};
 
-  // First pass: build word frequency map
+  // First pass: build per-category word frequency map
   for (const [playerId, answers] of Object.entries(playerAnswers)) {
     if (!answers || typeof answers !== "object") {
       scores[playerId] = 0;
@@ -29,16 +32,28 @@ const calculateScores = (playerAnswers, speedBonusWinnerId) => {
         continue;
       }
 
-      // Normalize word: lowercase and trim for comparison
+      // LETTER VALIDATION: Check word starts with the correct letter (case-insensitive)
       const normalizedWord = word.toLowerCase().trim();
-
-      if (!wordFrequency[normalizedWord]) {
-        wordFrequency[normalizedWord] = [];
+      if (!normalizedWord.startsWith(letter.toLowerCase())) {
+        // Word doesn't start with correct letter - skip it (0 points)
+        continue;
       }
 
-      // Only add if this player hasn't already used this word
-      if (!wordFrequency[normalizedWord].includes(playerId)) {
-        wordFrequency[normalizedWord].push(playerId);
+      // Initialize category map if needed
+      if (!wordFrequencyByCategory[category]) {
+        wordFrequencyByCategory[category] = {};
+      }
+
+      // Track player for this word in this category
+      if (!wordFrequencyByCategory[category][normalizedWord]) {
+        wordFrequencyByCategory[category][normalizedWord] = [];
+      }
+
+      // Only add if this player hasn't already used this word in this category
+      if (
+        !wordFrequencyByCategory[category][normalizedWord].includes(playerId)
+      ) {
+        wordFrequencyByCategory[category][normalizedWord].push(playerId);
       }
     }
   }
@@ -59,13 +74,25 @@ const calculateScores = (playerAnswers, speedBonusWinnerId) => {
       }
 
       const normalizedWord = word.toLowerCase().trim();
-      const playerCount = wordFrequency[normalizedWord].length;
+
+      // LETTER VALIDATION: Skip if doesn't start with correct letter
+      if (!normalizedWord.startsWith(letter.toLowerCase())) {
+        continue;
+      }
+
+      // Get category frequency map
+      if (!wordFrequencyByCategory[category]) {
+        continue;
+      }
+
+      const playerCount =
+        wordFrequencyByCategory[category][normalizedWord]?.length || 0;
 
       if (playerCount === 1) {
-        // Unique word: 10 points
+        // Unique word in this category: 10 points
         playerScore += 10;
       } else if (playerCount > 1) {
-        // Shared word: 5 points
+        // Shared word in this category: 5 points
         playerScore += 5;
       }
     }

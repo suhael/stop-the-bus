@@ -6,7 +6,7 @@ const {
 } = require("@stop-the-bus/shared/validators");
 const { InvalidInputError } = require("@stop-the-bus/shared/errors");
 
-// Generate a unique alphanumeric room code with collision detection
+// Generate a unique alphanumeric room code with atomic collision detection
 const generateUniqueRoomCode = async () => {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
   let code;
@@ -21,10 +21,14 @@ const generateUniqueRoomCode = async () => {
     }
     attempts++;
 
-    // Check if code already exists in Redis
-    const exists = await client.exists(`code:${code}`);
-    if (!exists) {
-      return code;
+    // CRITICAL FIX: Use SETNX for atomic "check and set" to prevent race condition
+    // In concurrent environment, two reqs could both pass exists() check
+    // SETNX is atomic - only one will succeed
+    const wasSet = await client.setNX(`code:${code}`, `temp_${code}`, {
+      EX: 86400, // 24 hour expiry
+    });
+    if (wasSet) {
+      return code; // Successfully created - no collision
     }
   } while (attempts < maxAttempts);
 
@@ -49,7 +53,7 @@ const createRoom = (socket, io, userSocketMap) => {
       // Use sanitized nickname for storage
       const cleanNickname = nicknameValidation.sanitized || nickname;
 
-      // Generate unique room code with collision detection
+      // Generate unique room code with atomic collision detection
       const roomCode = await generateUniqueRoomCode();
       const roomId = `room_${roomCode}`;
 
@@ -58,6 +62,9 @@ const createRoom = (socket, io, userSocketMap) => {
 
       // 3. Create the room in Redis with the code (using userId, not socket.id)
       await RedisService.createRoom(roomId, userId, roomCode);
+
+      // 4. Update code mapping to point to actual roomId (now that room is created)
+      await client.set(`code:${roomCode}`, roomId, { EX: 86400 });
 
       // 4. Store player metadata with sanitized nickname
       await RedisService.setPlayerMetadata(roomId, userId, cleanNickname);

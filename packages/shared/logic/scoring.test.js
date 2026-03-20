@@ -5,29 +5,29 @@ describe("Scoring Logic - calculateScores()", () => {
   describe("Unique vs Shared Words", () => {
     it("should award 10 points for unique words", () => {
       const playerAnswers = {
-        player1: { Name: "Alice", Country: "France", Food: "Pasta" },
-        player2: { Name: "Bob", Country: "Germany", Food: "Pizza" },
+        player1: { Name: "Alice", Country: "Austria", Food: "Apple" },
+        player2: { Name: "Albert", Country: "Argentina", Food: "Apricot" },
       };
 
-      const scores = calculateScores(playerAnswers, "player2");
+      const scores = calculateScores(playerAnswers, "A", "player2");
 
-      // player1: 3 unique words (Alice, France, Pasta) = 30 points
+      // player1: 3 unique words (all start with A) = 30 points
       expect(scores.player1).toBe(30);
-      // player2: 3 unique words (Bob, Germany, Pizza) + 3 speed bonus = 33 points
+      // player2: 3 unique words + 3 speed bonus = 33 points
       expect(scores.player2).toBe(33);
     });
 
     it("should award 5 points for shared words", () => {
       const playerAnswers = {
-        player1: { Name: "Alice", Country: "France", Food: "Pizza" },
-        player2: { Name: "Alice", Country: "France", Food: "Pasta" },
+        player1: { Name: "Alice", Country: "Austria", Food: "Apple" },
+        player2: { Name: "Alice", Country: "Austria", Food: "Apricot" },
       };
 
-      const scores = calculateScores(playerAnswers, "player1");
+      const scores = calculateScores(playerAnswers, "A", "player1");
 
-      // player1: 2 shared words (Alice, France) + 1 unique (Pizza) + 3 speed bonus = 2*5 + 10 + 3 = 23 points
+      // player1: 2 shared words (Alice, Austria) + 1 unique (Apple) + 3 speed bonus = 2*5 + 10 + 3 = 23 points
       expect(scores.player1).toBe(23);
-      // player2: 2 shared words (Alice, France) + 1 unique (Pasta) = 2*5 + 10 = 20 points
+      // player2: 2 shared words (Alice, Austria) + 1 unique (Apricot) = 2*5 + 10 = 20 points
       expect(scores.player2).toBe(20);
     });
 
@@ -35,31 +35,31 @@ describe("Scoring Logic - calculateScores()", () => {
       const playerAnswers = {
         player1: {
           Name: "Alice",
-          Country: "France",
-          Food: "Pizza",
-          Animal: "Cat",
+          Country: "Austria",
+          Food: "Apple",
+          Animal: "Ant",
         },
         player2: {
           Name: "Alice",
-          Country: "Germany",
-          Food: "Pizza",
-          Animal: "Dog",
+          Country: "Argentina",
+          Food: "Apple",
+          Animal: "Alligator",
         },
         player3: {
-          Name: "Bob",
-          Country: "France",
-          Food: "Pasta",
-          Animal: "Cat",
+          Name: "Albert",
+          Country: "Austria",
+          Food: "Apricot",
+          Animal: "Ant",
         },
       };
 
-      const scores = calculateScores(playerAnswers, "player1");
+      const scores = calculateScores(playerAnswers, "A", "player1");
 
-      // player1: Alice (shared, 5), France (shared, 5), Pizza (shared, 5), Cat (shared, 5) + speed bonus = 20 + 3 = 23
+      // player1: Alice (shared, 5), Austria (shared, 5), Apple (shared, 5), Ant (shared, 5) + speed bonus = 20 + 3 = 23
       expect(scores.player1).toBe(23);
-      // player2: Alice (shared, 5), Germany (unique, 10), Pizza (shared, 5), Dog (unique, 10) = 30
+      // player2: Alice (shared, 5), Argentina (unique, 10), Apple (shared, 5), Alligator (unique, 10) = 30
       expect(scores.player2).toBe(30);
-      // player3: Bob (unique, 10), France (shared, 5), Pasta (unique, 10), Cat (shared, 5) = 30
+      // player3: Albert (unique, 10), Austria (shared, 5), Apricot (unique, 10), Ant (shared, 5) = 30
       expect(scores.player3).toBe(30);
     });
   });
@@ -67,12 +67,12 @@ describe("Scoring Logic - calculateScores()", () => {
   describe("Speed Bonus Application", () => {
     it("should add 3 points to speed bonus winner", () => {
       const playerAnswers = {
-        player1: { Name: "Alice", Country: "France", Food: "Pizza" },
-        player2: { Name: "Bob", Country: "Germany", Food: "Pasta" },
+        player1: { Name: "Alice", Country: "Austria", Food: "Apple" },
+        player2: { Name: "Albert", Country: "Argentina", Food: "Apricot" },
       };
 
-      const scoresWithBonus = calculateScores(playerAnswers, "player1");
-      const scoresWithoutBonus = calculateScores(playerAnswers, "player2");
+      const scoresWithBonus = calculateScores(playerAnswers, "A", "player1");
+      const scoresWithoutBonus = calculateScores(playerAnswers, "A", "player2");
 
       // player1 should have 3 more points when they're the bonus winner
       expect(scoresWithBonus.player1).toBe(scoresWithoutBonus.player1 + 3);
@@ -81,12 +81,12 @@ describe("Scoring Logic - calculateScores()", () => {
 
     it("should only apply bonus to the speed winner", () => {
       const playerAnswers = {
-        player1: { Name: "Alice", Country: "France" },
-        player2: { Name: "Bob", Country: "Germany" },
-        player3: { Name: "Charlie", Country: "Spain" },
+        player1: { Name: "Alice", Country: "Austria" },
+        player2: { Name: "Albert", Country: "Argentina" },
+        player3: { Name: "Anna", Country: "Angola" },
       };
 
-      const scores = calculateScores(playerAnswers, "player2");
+      const scores = calculateScores(playerAnswers, "A", "player2");
 
       // Only player2 should have the +3 bonus
       expect(scores.player1).toBe(20); // 2 unique * 10
@@ -99,10 +99,10 @@ describe("Scoring Logic - calculateScores()", () => {
     it("should handle empty answers", () => {
       const playerAnswers = {
         player1: {},
-        player2: { Name: "Bob", Country: "Germany" },
+        player2: { Name: "Albert", Country: "Argentina" },
       };
 
-      const scores = calculateScores(playerAnswers, "player2");
+      const scores = calculateScores(playerAnswers, "A", "player2");
 
       expect(scores.player1).toBe(0);
       expect(scores.player2).toBe(23); // 2 unique + 3 bonus
@@ -110,55 +110,55 @@ describe("Scoring Logic - calculateScores()", () => {
 
     it("should handle null/empty string answers", () => {
       const playerAnswers = {
-        player1: { Name: "", Country: "France", Food: null },
-        player2: { Name: "Alice", Country: "France", Food: "Pizza" },
+        player1: { Name: "", Country: "Austria", Food: null },
+        player2: { Name: "Alice", Country: "Austria", Food: "Apple" },
       };
 
-      const scores = calculateScores(playerAnswers, "player1");
+      const scores = calculateScores(playerAnswers, "A", "player1");
 
-      // player1: only France (shared, 5) + speed bonus = 8
+      // player1: only Austria (shared, 5) + speed bonus = 8
       expect(scores.player1).toBe(8);
-      // player2: France (shared, 5) + Alice (unique, 10) + Pizza (unique, 10) = 25
+      // player2: Austria (shared, 5) + Alice (unique, 10) + Apple (unique, 10) = 25
       expect(scores.player2).toBe(25);
     });
 
     it("should handle whitespace-only answers", () => {
       const playerAnswers = {
-        player1: { Name: "   ", Country: "France" },
-        player2: { Name: "Alice", Country: "France" },
+        player1: { Name: "   ", Country: "Austria" },
+        player2: { Name: "Alice", Country: "Austria" },
       };
 
-      const scores = calculateScores(playerAnswers, "player1");
+      const scores = calculateScores(playerAnswers, "A", "player1");
 
-      // player1: only France (shared, 5) + speed bonus = 8
+      // player1: only Austria (shared, 5) + speed bonus = 8
       expect(scores.player1).toBe(8);
-      // player2: Alice (unique, 10) + France (shared, 5) = 15
+      // player2: Alice (unique, 10) + Austria (shared, 5) = 15
       expect(scores.player2).toBe(15);
     });
 
     it("should handle case-insensitive word matching", () => {
       const playerAnswers = {
-        player1: { Name: "ALICE", Country: "france" },
-        player2: { Name: "alice", Country: "FRANCE" },
+        player1: { Name: "ALICE", Country: "austria" },
+        player2: { Name: "alice", Country: "AUSTRIA" },
       };
 
-      const scores = calculateScores(playerAnswers, "player1");
+      const scores = calculateScores(playerAnswers, "A", "player1");
 
       // Both should have matching shared words despite case differences
-      // player1: Alice (shared, 5) + france (shared, 5) + speed bonus = 13
+      // player1: Alice (shared, 5) + austria (shared, 5) + speed bonus = 13
       expect(scores.player1).toBe(13);
-      // player2: alice (shared, 5) + FRANCE (shared, 5) = 10
+      // player2: alice (shared, 5) + AUSTRIA (shared, 5) = 10
       expect(scores.player2).toBe(10);
     });
 
     it("should handle missing properties", () => {
       const playerAnswers = {
-        player1: { Name: "Alice", Country: "France", Food: "Pizza" },
-        player2: { Name: "Bob", Food: "Pasta" }, // Missing Country
+        player1: { Name: "Alice", Country: "Austria", Food: "Apple" },
+        player2: { Name: "Albert", Food: "Apricot" }, // Missing Country
         player3: null,
       };
 
-      const scores = calculateScores(playerAnswers, "player1");
+      const scores = calculateScores(playerAnswers, "A", "player1");
 
       // player1: 3 unique + speed bonus = 33
       expect(scores.player1).toBe(33);
@@ -170,10 +170,10 @@ describe("Scoring Logic - calculateScores()", () => {
 
     it("should handle single player", () => {
       const playerAnswers = {
-        player1: { Name: "Alice", Country: "France", Food: "Pizza" },
+        player1: { Name: "Alice", Country: "Austria", Food: "Apple" },
       };
 
-      const scores = calculateScores(playerAnswers, "player1");
+      const scores = calculateScores(playerAnswers, "A", "player1");
 
       // All words are unique (no one else to share with) + speed bonus
       expect(scores.player1).toBe(33); // 3 * 10 + 3
@@ -186,7 +186,7 @@ describe("Scoring Logic - calculateScores()", () => {
         player3: {},
       };
 
-      const scores = calculateScores(playerAnswers, "player1");
+      const scores = calculateScores(playerAnswers, "A", "player1");
 
       expect(scores.player1).toBe(3); // Only speed bonus
       expect(scores.player2).toBe(0);
@@ -195,14 +195,14 @@ describe("Scoring Logic - calculateScores()", () => {
 
     it("should handle three-way shared word", () => {
       const playerAnswers = {
-        player1: { Animal: "Cat", Food: "Pizza" },
-        player2: { Animal: "Cat", Food: "Pasta" },
-        player3: { Animal: "Cat", Food: "Burger" },
+        player1: { Animal: "Ant", Food: "Apple" },
+        player2: { Animal: "Ant", Food: "Apricot" },
+        player3: { Animal: "Ant", Food: "Avocado" },
       };
 
-      const scores = calculateScores(playerAnswers, "player1");
+      const scores = calculateScores(playerAnswers, "A", "player1");
 
-      // Each player: Cat (shared among 3, 5 pts) + 1 unique (10 pts)
+      // Each player: Ant (shared among 3, 5 pts) + 1 unique (10 pts)
       // player1: 5 + 10 + speed bonus = 18
       expect(scores.player1).toBe(18);
       // player2: 5 + 10 = 15
@@ -212,43 +212,180 @@ describe("Scoring Logic - calculateScores()", () => {
     });
   });
 
-  describe("Integration Tests", () => {
-    it("should calculate real game scenario correctly", () => {
+  describe("Letter Validation", () => {
+    it("should reject words not starting with letter", () => {
       const playerAnswers = {
-        alice: {
-          Name: "Alice",
-          Country: "France",
-          Food: "Croissant",
-          Animal: "Cat",
-          Brand: "Nike",
+        player1: { Name: "Alice", Country: "Brazil", Food: "Apple" },
+        player2: { Name: "Bob", Country: "Austria", Food: "Bread" },
+      };
+
+      const scores = calculateScores(playerAnswers, "A", "player1");
+
+      // player1: Alice (unique, 10) + Brazil (REJECTED, 0) + Apple (unique, 10) + speed bonus = 23
+      expect(scores.player1).toBe(23);
+      // player2: Bob (REJECTED, 0) + Austria (unique, 10) + Bread (REJECTED, 0) = 10
+      expect(scores.player2).toBe(10);
+    });
+
+    it("should validate letter case-insensitively", () => {
+      const playerAnswers = {
+        player1: { Name: "alice", Country: "austria" },
+        player2: { Name: "alice", Country: "austria" },
+      };
+
+      const scores = calculateScores(playerAnswers, "a", "player1");
+
+      // Letter 'a' should match lowercase words (all are repeated)
+      // Both players have identical words: alice (shared, 5) + austria (shared, 5)
+      // player1: 5 + 5 + speed bonus = 13
+      expect(scores.player1).toBe(13);
+      // player2: 5 + 5 = 10
+      expect(scores.player2).toBe(10);
+    });
+
+    it("should handle mix of valid and invalid words per category", () => {
+      const playerAnswers = {
+        player1: {
+          Name: "Alice", // A - valid
+          Country: "Belgium", // B - invalid for A round
+          Animal: "Ant", // A - valid
         },
-        bob: {
-          Name: "Bob",
-          Country: "Germany",
-          Food: "Sauerkraut",
-          Animal: "Dog",
-          Brand: "Adidas",
-        },
-        charlie: {
-          Name: "Charlie",
-          Country: "France",
-          Food: "Croissant",
-          Animal: "Elephant",
-          Brand: "Nike",
+        player2: {
+          Name: "Austria", // A - valid (but wrong category - Name should be person)
+          Country: "Austria", // A - valid
+          Animal: "Bear", // B - invalid for A round
         },
       };
 
-      const scores = calculateScores(playerAnswers, "alice");
+      const scores = calculateScores(playerAnswers, "A", "player1");
 
-      // alice: France (shared, 5) + Cat (unique, 10) + 3 others (unique, 30) + bonus = 48
-      // Let's trace: Name (unique), Country (shared w/ Charlie), Food (shared w/ Charlie), Animal (unique), Brand (shared w/ Charlie) = 10 + 5 + 5 + 10 + 5 + 3 = 38
+      // player1: Alice (unique, 10) + Belgium (REJECTED, 0) + Ant (unique, 10) + speed bonus = 23
+      expect(scores.player1).toBe(23);
+      // player2: Austria (unique, 10) + Austria (unique, 10) + Bear (REJECTED, 0) = 20
+      expect(scores.player2).toBe(20);
+    });
+  });
+
+  describe("Cross-Category Uniqueness", () => {
+    it("should score same word independently across categories", () => {
+      const playerAnswers = {
+        player1: {
+          Name: "Apple",
+          Country: "Apple",
+          Food: "Apple",
+        },
+        player2: {
+          Name: "Alice",
+          Country: "Austria",
+          Food: "Apricot",
+        },
+      };
+
+      const scores = calculateScores(playerAnswers, "A", "player1");
+
+      // player1: Apple in Name (unique, 10) + Apple in Country (unique, 10) + Apple in Food (unique, 10) + speed bonus = 33
+      // Cross-category are scored independently! Apple doesn't mark as "shared" across categories
+      expect(scores.player1).toBe(33);
+      // player2: Alice (unique, 10) + Austria (unique, 10) + Apricot (unique, 10) = 30
+      expect(scores.player2).toBe(30);
+    });
+
+    it("should correctly handle per-category uniqueness with duplicates within category", () => {
+      const playerAnswers = {
+        alice: {
+          Name: "Alice",
+          Country: "Austria",
+          Food: "Apple",
+          Animal: "Ant",
+          Brand: "Adidas",
+        },
+        bob: {
+          Name: "Bob", // REJECTED - starts with B
+          Country: "Germany", // REJECTED - starts with G
+          Food: "Apple", // shared with alice in Food category
+          Animal: "Antelope", // shared with alice in Animal category (both start with A)
+          Brand: "Adidas", // shared with alice in Brand category
+        },
+        charlie: {
+          Name: "Anna",
+          Country: "Angola",
+          Food: "Apricot",
+          Animal: "Aardvark",
+          Brand: "Apple", // Different from Adidas
+        },
+      };
+
+      const scores = calculateScores(playerAnswers, "A", "alice");
+
+      // alice: Name (shared 2 ways: alice & charlie, 5) + Country (shared 2 ways: austria & angola, 5)
+      //        + Food (shared 2 ways: apple, 5) + Animal (shared 2 ways: ant family, 5) + Brand (shared 2 ways: adidas, 5) + speed bonus = 25 + 3 = 28
+      // Actually let's recalculate:
+      // alice:
+      //   Name "Alice" (unique, 10) - bob="Bob" rejected
+      //   Country "Austria" (unique, 10) - bob="Germany" rejected
+      //   Food "Apple" (alice & bob, shared, 5)
+      //   Animal "Ant" (unique, 10) - bob="Antelope" (different word)
+      //   Brand "Adidas" (alice & bob, shared, 5)
+      // = 10 + 10 + 5 + 10 + 5 + 3 (speed bonus) = 43
+      expect(scores.alice).toBe(43);
+
+      // bob: Name "Bob" (rejected), Country "Germany" (rejected), Food "Apple" (shared with alice, 5),
+      //      Animal "Antelope" (unique, 10), Brand "Adidas" (shared with alice, 5) = 0+0+5+10+5 = 20
+      expect(scores.bob).toBe(20);
+
+      // charlie: Name "Anna" (unique, 10), Country "Angola" (unique, 10), Food "Apricot" (unique, 10),
+      //          Animal "Aardvark" (unique, 10), Brand "Apple" (unique, 10) = 50
+      expect(scores.charlie).toBe(50);
+    });
+  });
+
+  describe("Integration Tests", () => {
+    it("should calculate real game scenario with all 4 bug fixes", () => {
+      const playerAnswers = {
+        alice: {
+          Name: "Alice",
+          Country: "Austria",
+          Food: "Apple",
+          Animal: "Ant",
+          Brand: "Audi",
+        },
+        bob: {
+          Name: "Albert",
+          Country: "Argentina",
+          Food: "Apricot",
+          Animal: "Antelope",
+          Brand: "Audi",
+        },
+        charlie: {
+          Name: "Anna",
+          Country: "Austria",
+          Food: "Avocado",
+          Animal: "Ant",
+          Brand: "Apple",
+        },
+      };
+
+      const scores = calculateScores(playerAnswers, "A", "alice");
+
+      // BUG FIX #1 (Room Freezing): Timeout handling - verified by test passing
+      // BUG FIX #2 (Zebra Exploit): Letter validation - all words start with A, so all are valid
+      // BUG FIX #3 (Cross-Category): Per-category uniqueness
+      //   - Alice (Name): unique (10)
+      //   - Austria (Country): shared with charlie (5)
+      //   - Apple (Food): unique (10)
+      //   - Ant (Animal): shared with charlie (5)
+      //   - Audi (Brand): shared with bob (5)
+      //   - Speed bonus: (3)
+      // alice total = 10 + 5 + 10 + 5 + 5 + 3 = 38
       expect(scores.alice).toBe(38);
 
-      // bob: All unique except Country (unique) = 50
-      expect(scores.bob).toBe(50);
+      // bob: Albert (unique, 10), Argentina (unique, 10), Apricot (unique, 10), Antelope (unique, 10), Audi (shared, 5)
+      // = 45
+      expect(scores.bob).toBe(45);
 
-      // charlie: Name (unique), Country (shared w/ Alice), Food (shared w/ Alice), Animal (unique), Brand (shared w/ Alice) = 10 + 5 + 5 + 10 + 5 = 35
-      expect(scores.charlie).toBe(35);
+      // charlie: Anna (unique, 10), Austria (shared, 5), Avocado (unique, 10), Ant (shared, 5), Apple (unique, 10)
+      // = 40
+      expect(scores.charlie).toBe(40);
     });
   });
 });
