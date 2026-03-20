@@ -5,6 +5,7 @@ const {
   NotHostError,
   InsufficientPlayersError,
   NoLettersAvailableError,
+  GameAlreadyInProgressError,
 } = require("@stop-the-bus/shared/errors");
 
 // Generate a random letter that hasn't been used in this game yet
@@ -63,7 +64,7 @@ const startGame = (socket, io) => {
       // 2. Get current room status
       const roomStatus = await RedisService.getRoomStatus(roomId);
       if (roomStatus !== "WAITING") {
-        throw new Error("Game already in progress");
+        throw new GameAlreadyInProgressError();
       }
 
       // 3. Verify at least 2 players before starting

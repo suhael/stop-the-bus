@@ -6,6 +6,8 @@ const setPlayerMetadata = async (roomId, userId, nickname) => {
     nickname,
     joinedAt: Date.now(),
   });
+  // Set same TTL as room (24 hours)
+  await client.expire(`room:${roomId}:player:${userId}`, 86400);
 };
 
 module.exports = setPlayerMetadata;

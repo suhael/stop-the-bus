@@ -52,15 +52,13 @@ const disconnect = (socket, io, pendingDisconnects, userSocketMap) => {
         // Clean up memory - remove from grace period tracking
         pendingDisconnects.delete(userId);
 
+        // Clear any pending scoring timeout
+        if (socket.scoringTimeout) {
+          clearTimeout(socket.scoringTimeout);
+        }
+
         // Clean up user socket map to prevent memory leak
         userSocketMap.delete(userId);
-
-        // Also cleanup any orphaned entries (in case socket disconnected without userId)
-        for (const [id, socketId] of userSocketMap.entries()) {
-          if (socketId === socket.id) {
-            userSocketMap.delete(id);
-          }
-        }
       }
     }, 5000);
 

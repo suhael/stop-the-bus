@@ -15,9 +15,11 @@
     "redis:seed": "npm run seed --workspace=@stop-the-bus/server",
     "server:dev": "npm run dev --workspace=@stop-the-bus/server",
     "mobile:start": "npm run start --workspace=@stop-the-bus/mobile",
-    "db:flush": "docker exec -it stb_redis redis-cli FLUSHALL"
+    "db:flush": "docker exec -it stb_redis redis-cli FLUSHALL",
+    "test": "vitest"
   },
   "devDependencies": {
-    "nodemon": "^3.0.0"
+    "nodemon": "^3.0.0",
+    "vitest": "^4.1.0"
   }
 }

@@ -52,6 +52,12 @@ class NoLettersAvailableError extends SocketError {
   }
 }
 
+class GameAlreadyInProgressError extends SocketError {
+  constructor() {
+    super("GAME_ALREADY_IN_PROGRESS", "Game is already in progress");
+  }
+}
+
 module.exports = {
   SocketError,
   RoomNotFoundError,
@@ -61,4 +67,5 @@ module.exports = {
   NotHostError,
   InsufficientPlayersError,
   NoLettersAvailableError,
+  GameAlreadyInProgressError,
 };
