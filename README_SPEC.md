@@ -22,7 +22,16 @@
 
 ---
 
-## 3. Core Logic & Flow
+## 3. System Architecture
+
+- **Monorepo:** npm workspaces (`apps/server`, `packages/shared`).
+- **Real-time:** Node.js + Socket.io.
+- **State Management:** Redis (Lists for player order, Hashes for room state).
+- **Logic:** Centralized in `packages/shared` for testability.
+
+---
+
+## 4. Core Logic & Flow
 
 ### A. The "On Blur" Validation
 
@@ -48,7 +57,7 @@ Validation occurs when a user navigates away from an input field (`OnBlur`).
 
 ---
 
-## 4. Data Structures (Redis)
+## 5. Data Structures (Redis)
 
 ### Room Hash (`room:[ID]`)
 
@@ -59,24 +68,52 @@ Validation occurs when a user navigates away from an input field (`OnBlur`).
 | `letter`  | String  | Current round letter                |
 | `round`   | Integer | 1 through 5                         |
 
+### Room State Schema (Redis)
+
+- `room:[ID]` (Hash):
+  - `host_id`: socket.id of the driver.
+  - `status`: `LOBBY`, `PLAYING`, `SCRAMBLE`, `SCORING`.
+  - `letter`: The char for the current round.
+  - `round`: Current round number (1-5).
+- `room:[ID]:players` (List): Ordered list of socket IDs.
+- `room:[ID]:answers:[round]` (Hash): `{ [playerId]: JSON_STRING_OF_ANSWERS }`.
+
 ### Player List (`room:[ID]:players`)
 
 - Redis List: `[p1_id, p2_id, p3_id...]` (Maintains join order).
 
 ---
 
-## 5. Scoring Algorithm
+## 6. Comprehensive Event List
 
-Points are calculated server-side after the scramble:
-
-- **Unique Word:** 10 points (Valid word, no other player used it).
-- **Shared Word:** 5 points (Valid word, used by 2+ players).
-- **Speed Bonus:** +3 points (Awarded to the player who triggered the Stop).
-- **Invalid/Empty:** 0 points.
+| Event                | Direction | Payload                                | Description                                     |
+| :------------------- | :-------- | :------------------------------------- | :---------------------------------------------- |
+| **JOIN_ROOM**        | C -> S    | `{ roomId, nickname }`                 | Joins room, sets `socket.currentRoom`.          |
+| **PASSENGER_JOINED** | S -> R    | `{ playerId, nickname, isDriver }`     | Syncs lobby list to all clients.                |
+| **HOST_MIGRATED**    | S -> R    | `{ newHostId }`                        | Triggered after 5s grace period if host leaves. |
+| **START_GAME**       | C -> S    | `null`                                 | Host only. Transitions room to `PLAYING`.       |
+| **ROUND_START**      | S -> R    | `{ letter, round }`                    | Sends random letter; starts client timers.      |
+| **STOP_CLICKED**     | C -> S    | `null`                                 | First player to finish hits this.               |
+| **START_SCRAMBLE**   | S -> R    | `{ timeRemaining: 3 }`                 | Global 3s countdown for all other players.      |
+| **SUBMIT_WORDS**     | C -> S    | `{ words: { category: word } }`        | Clients auto-emit when scramble hits 0.         |
+| **ROUND_RESULTS**    | S -> R    | `{ scores: {}, nextRoundReady: bool }` | Calculation of unique/shared words.             |
+| **GAME_OVER**        | S -> R    | `{ podium: [] }`                       | Final scores after 5 rounds.                    |
 
 ---
 
-## 6. UI/UX States
+## 7. Scoring Algorithm
+
+Points are calculated server-side after the scramble:
+
+- **Valid & Unique:** 10 points (No other player used this word).
+- **Valid & Shared:** 5 points (Used by 2 or more players).
+- **Speed Bonus:** +3 points to the player who emitted `STOP_CLICKED`.
+- **Invalid/Empty:** 0 points.
+- _Note: Validation uses SQLite 'words.db' on the Mobile side, but the Server performs the final cross-reference check._
+
+---
+
+## 8. UI/UX States
 
 1. **The Depot (Lobby):** Players join via 5-digit ticket code.
 2. **The Ride (Gameplay):** 5 cards (Name, Country, Food, Animal, Brand).
@@ -85,9 +122,16 @@ Points are calculated server-side after the scramble:
 
 ---
 
-## 7. Local Development
+## 9. Local Development
 
 1. **Start Services:** `npm run redis:up` (Starts Docker Redis).
 2. **Seed Data:** `npm run redis:seed`.
 3. **Run Server:** `F5` in VS Code or `npm run server:dev`.
 4. **Run Mobile:** `npm run mobile:start`.
+
+---
+
+## 10. Testing Strategy
+
+- **Unit Tests:** Test the `scoring.js` logic in `packages/shared` using Vitest/Jest.
+- **E2E Tests:** Use `socket.io-client` in a test script to simulate 2-3 virtual players joining, playing a round, and verifying the score.
