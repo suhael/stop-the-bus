@@ -1,0 +1,956 @@
+================================================================================
+                    STOP THE BUS - FULL BACKEND SOURCE
+                            Last Updated: 20 March 2026
+================================================================================
+
+This file contains all server and shared package code in one consolidated view.
+
+================================================================================
+                         FILE STRUCTURE OVERVIEW
+================================================================================
+
+📁 apps/server/src/
+  ├── server.js                              (Entry point & Socket.io initialization)
+  └── eventHandlers/
+      ├── index.js                           (Event handler registration)
+      ├── createRoom.js                      (CREATE_ROOM event)
+      ├── joinRoom.js                        (JOIN_ROOM event)
+      └── disconnect.js                      (disconnect event)
+
+📁 packages/shared/
+  ├── constants.js                           (Empty - reserved for game constants)
+  ├── validators.js                          (Input validation functions)
+  ├── errors.js                              (Custom error types)
+  └── redis/
+      ├── client.js                          (Redis client initialization)
+      ├── index.js                           (Service exports)
+      ├── room/
+      │   ├── createRoom.js                  (Create room in Redis)
+      │   ├── getHost.js                     (Get current host/driver)
+      │   ├── getRoomFromCode.js             (Look up roomId from code)
+      │   ├── getRoomStatus.js               (Get room status)
+      │   ├── getRoomIdForUser.js            (Reconnection helper - stub)
+      │   └── cleanupRoom.js                 (Atomic room cleanup)
+      └── player/
+          ├── getPlayers.js                  (Get all players in room)
+          ├── getPlayersWithNicknames.js     (Get players with nicknames)
+          ├── addPlayer.js                   (Add player to room)
+          ├── setPlayerMetadata.js           (Store player metadata)
+          └── removePlayer.js                (Remove player & handle host migration)
+
+================================================================================
+                         PART 1: SERVER ENTRY POINT
+================================================================================
+
+FILE: apps/server/src/server.js
+────────────────────────────────────────────────────────────────────────────
+
+const express = require("express");
+const http = require("http");
+const { Server } = require("socket.io");
+const { connectRedis } = require("@stop-the-bus/shared/redis");
+const registerEventHandlers = require("./eventHandlers");
+require("dotenv").config();
+
+const app = express();
+const server = http.createServer(app);
+
+// Initialize Socket.io with CORS configuration
+const io = new Server(server, {
+  cors: {
+    // For development: allow all origins
+    // For production: use environment variable to restrict to specific domains
+    origin: process.env.ALLOWED_ORIGINS?.split(",") || "*",
+    methods: ["GET", "POST"],
+  },
+});
+
+const PORT = process.env.PORT || 3000;
+
+// 1. Startup Logic
+const startBus = async () => {
+  try {
+    if (!process.env.REDIS_URL) {
+      console.error(
+        `❌ ERROR: Missing required environment variable: REDIS_URL`,
+      );
+      console.error(`👉 Check your .env file or copy it from .env.example`);
+      process.exit(1);
+    }
+
+    await connectRedis();
+
+    // 2. Register Socket.io Event Handlers
+    registerEventHandlers(io);
+
+    server.listen(PORT, () => {
+      console.log(`\n🚌 BUS IS AT THE DEPOT!`);
+      console.log(`📡 Listening on port: ${PORT}`);
+      console.log(`🔗 Redis connected at: ${process.env.REDIS_URL}`);
+      console.log(
+        `🔐 CORS allowed origins: ${process.env.ALLOWED_ORIGINS || "* (development)"}`,
+      );
+      console.log("\n");
+    });
+  } catch (error) {
+    console.error("❌ Failed to start the bus engine:", error);
+    process.exit(1);
+  }
+};
+
+// 3. Boot-up sequence
+startBus();
+
+module.exports = { app, server, io };
+
+
+================================================================================
+                    PART 2: EVENT HANDLER REGISTRATION
+================================================================================
+
+FILE: apps/server/src/eventHandlers/index.js
+────────────────────────────────────────────────────────────────────────────
+
+const createRoom = require("./createRoom");
+const joinRoom = require("./joinRoom");
+const disconnect = require("./disconnect");
+
+/**
+ * Register all socket.io event handlers
+ */
+const registerSocketHandlers = (io) => {
+  // Global map to track userId -> socket.id for current active connections
+  const userSocketMap = new Map();
+
+  io.on("connection", (socket) => {
+    const pendingDisconnects = new Map();
+    console.log(`\n👤 New connection... (Socket ID: ${socket.id})`);
+
+    // Register all event handlers
+    socket.on("CREATE_ROOM", createRoom(socket, io, userSocketMap));
+    socket.on(
+      "JOIN_ROOM",
+      joinRoom(socket, io, pendingDisconnects, userSocketMap),
+    );
+    socket.on(
+      "disconnect",
+      disconnect(socket, io, pendingDisconnects, userSocketMap),
+    );
+  });
+};
+
+module.exports = registerSocketHandlers;
+
+
+================================================================================
+                      PART 3: CREATE_ROOM EVENT HANDLER
+================================================================================
+
+FILE: apps/server/src/eventHandlers/createRoom.js
+────────────────────────────────────────────────────────────────────────────
+
+const { RedisService } = require("@stop-the-bus/shared/redis");
+const {
+  validateUserId,
+  validateNickname,
+} = require("@stop-the-bus/shared/validators");
+const { InvalidInputError } = require("@stop-the-bus/shared/errors");
+
+// Generate a random 5-digit room code
+const generateRoomCode = () => {
+  return Math.floor(10000 + Math.random() * 90000).toString();
+};
+
+// Event: Create a new room (Host only)
+const createRoom = (socket, io, userSocketMap) => {
+  return async ({ userId, nickname }) => {
+    try {
+      // 1. Validate inputs
+      const userIdValidation = validateUserId(userId);
+      if (!userIdValidation.valid) {
+        throw new InvalidInputError("userId", userIdValidation.error);
+      }
+
+      const nicknameValidation = validateNickname(nickname);
+      if (!nicknameValidation.valid) {
+        throw new InvalidInputError("nickname", nicknameValidation.error);
+      }
+
+      const roomCode = generateRoomCode();
+      const roomId = `room_${roomCode}`;
+
+      // 2. Track userId -> socket.id mapping
+      userSocketMap.set(userId, socket.id);
+
+      // 3. Create the room in Redis with the code (using userId, not socket.id)
+      await RedisService.createRoom(roomId, userId, roomCode);
+
+      // 4. Store player metadata
+      await RedisService.setPlayerMetadata(roomId, userId, nickname);
+
+      console.log(`✅ Host (${userId}) created room: ${roomCode}`);
+
+      // 5. Join the Socket.io room immediately
+      socket.currentRoom = roomId;
+      socket.currentUserId = userId;
+      socket.nickname = nickname;
+      socket.join(roomId);
+
+      // 6. Broadcast PASSENGER_JOINED so the creator sees themselves
+      // (No need to call getHost again - we know userId is the host)
+      io.to(roomId).emit("PASSENGER_JOINED", {
+        playerId: userId,
+        nickname: nickname,
+        isDriver: true,
+      });
+
+      // 7. Return the code to the client so they can share it
+      socket.emit("ROOM_CREATED", { roomCode, roomId });
+    } catch (err) {
+      console.error("🚨 Room Creation Error:", {
+        userId: arguments[0]?.userId,
+        error: err.message,
+        code: err.code,
+      });
+      socket.emit("ERROR", {
+        code: err.code || "CREATE_ROOM_FAILED",
+        message: err.message || "Could not create room.",
+      });
+    }
+  };
+};
+
+module.exports = createRoom;
+
+
+================================================================================
+                      PART 4: JOIN_ROOM EVENT HANDLER
+================================================================================
+
+FILE: apps/server/src/eventHandlers/joinRoom.js
+────────────────────────────────────────────────────────────────────────────
+
+const { RedisService } = require("@stop-the-bus/shared/redis");
+const {
+  validateUserId,
+  validateNickname,
+  validateRoomCode,
+} = require("@stop-the-bus/shared/validators");
+const {
+  InvalidInputError,
+  RoomNotFoundError,
+  RoomNotWaitingError,
+  NicknameTakenError,
+} = require("@stop-the-bus/shared/errors");
+
+// Event: Joining a Room
+const joinRoom = (socket, io, pendingDisconnects, userSocketMap) => {
+  return async ({ roomCode, userId, nickname }) => {
+    // Handle reconnection from grace period
+    if (pendingDisconnects.has(userId)) {
+      clearTimeout(pendingDisconnects.get(userId));
+      pendingDisconnects.delete(userId);
+      console.log(`✨ Player ${nickname} (${userId}) returned just in time!`);
+
+      // Look up roomId from the code sent by client
+      const roomId = await RedisService.getRoomFromCode(roomCode);
+      if (!roomId) {
+        socket.emit("ERROR", {
+          code: "ROOM_NOT_FOUND",
+          message: "Room no longer exists",
+        });
+        return;
+      }
+
+      // Restore connection for this userId
+      userSocketMap.set(userId, socket.id);
+      socket.currentUserId = userId;
+      socket.currentRoom = roomId;
+      socket.join(roomId);
+
+      io.to(roomId).emit("PLAYER_RECONNECTED", { playerId: userId });
+      return;
+    }
+
+    try {
+      // 1. Validate inputs
+      const userIdValidation = validateUserId(userId);
+      if (!userIdValidation.valid) {
+        throw new InvalidInputError("userId", userIdValidation.error);
+      }
+
+      const nicknameValidation = validateNickname(nickname);
+      if (!nicknameValidation.valid) {
+        throw new InvalidInputError("nickname", nicknameValidation.error);
+      }
+
+      const roomCodeValidation = validateRoomCode(roomCode);
+      if (!roomCodeValidation.valid) {
+        throw new InvalidInputError("roomCode", roomCodeValidation.error);
+      }
+
+      // 2. Look up roomId from the room code
+      const roomId = await RedisService.getRoomFromCode(roomCode);
+      if (!roomId) {
+        throw new RoomNotFoundError();
+      }
+
+      // 3. Check if room is still in WAITING status
+      const roomStatus = await RedisService.getRoomStatus(roomId);
+      if (roomStatus !== "WAITING") {
+        throw new RoomNotWaitingError();
+      }
+
+      // 4. Check for duplicate nicknames
+      const existingPlayers =
+        await RedisService.getPlayersWithNicknames(roomId);
+      if (existingPlayers.some((p) => p.nickname === nickname)) {
+        throw new NicknameTakenError();
+      }
+
+      // 5. Track userId -> socket.id mapping
+      userSocketMap.set(userId, socket.id);
+
+      // 6. Attach the roomId and userId to the socket
+      socket.currentRoom = roomId;
+      socket.currentUserId = userId;
+      socket.nickname = nickname;
+      socket.reconnectRoom = roomId; // For reconnection handling
+
+      // 7. Physical join to the Socket.io room
+      socket.join(roomId);
+
+      // 8. Add player to room in Redis (using userId, not socket.id)
+      const players = await RedisService.getPlayers(roomId);
+      if (!players.includes(userId)) {
+        await RedisService.addPlayer(roomId, userId);
+        await RedisService.setPlayerMetadata(roomId, userId, nickname);
+      }
+
+      console.log(`✅ ${nickname} (${userId}) boarded Bus: ${roomId}`);
+
+      // 9. Broadcast PASSENGER_JOINED to everyone including themselves
+      const hostId = await RedisService.getHost(roomId);
+      io.to(roomId).emit("PASSENGER_JOINED", {
+        playerId: userId,
+        nickname: nickname,
+        isDriver: userId === hostId,
+      });
+    } catch (err) {
+      console.error("🚨 Boarding Error:", {
+        userId: arguments[0]?.userId,
+        roomCode: arguments[0]?.roomCode,
+        error: err.message,
+        code: err.code,
+      });
+      socket.emit("ERROR", {
+        code: err.code || "JOIN_ROOM_FAILED",
+        message: err.message || "Could not join the bus.",
+      });
+    }
+  };
+};
+
+module.exports = joinRoom;
+
+
+================================================================================
+                     PART 5: DISCONNECT EVENT HANDLER
+================================================================================
+
+FILE: apps/server/src/eventHandlers/disconnect.js
+────────────────────────────────────────────────────────────────────────────
+
+const { RedisService } = require("@stop-the-bus/shared/redis");
+
+// Event: Disconnect
+const disconnect = (socket, io, pendingDisconnects, userSocketMap) => {
+  return async () => {
+    const roomId = socket.currentRoom;
+    const userId = socket.currentUserId;
+
+    if (!roomId || !userId) {
+      console.warn(
+        `⚠️ Disconnect: Missing socket state (room: ${roomId}, user: ${userId})`,
+      );
+      return;
+    }
+
+    console.log(
+      `⚠️ Player ${userId} lost connection. Waiting 5s for return...`,
+    );
+
+    // Start the 5-second grace period timer
+    const timeoutId = setTimeout(async () => {
+      console.log(
+        `\n👣 Grace period ended. Removing Player ${userId} from Bus: ${roomId}`,
+      );
+
+      try {
+        const newHostId = await RedisService.removePlayer(roomId, userId);
+
+        if (newHostId) {
+          io.to(roomId).emit("HOST_MIGRATED", { newHostId });
+          console.log(`👑 Host Migrated to: ${newHostId}`);
+        } else {
+          // No players left - clean up entire room
+          await RedisService.cleanupRoom(roomId);
+          console.log(`🧹 Cleaned up empty room: ${roomId}`);
+        }
+      } catch (err) {
+        console.error(
+          `❌ Error during player removal (${userId}):`,
+          err.message,
+        );
+      } finally {
+        // Clean up memory - remove from grace period tracking
+        pendingDisconnects.delete(userId);
+
+        // Clean up user socket map to prevent memory leak
+        userSocketMap.delete(userId);
+      }
+    }, 5000);
+
+    pendingDisconnects.set(userId, timeoutId);
+  };
+};
+
+module.exports = disconnect;
+
+
+================================================================================
+                      PART 6: REDIS CLIENT INITIALIZATION
+================================================================================
+
+FILE: packages/shared/redis/client.js
+────────────────────────────────────────────────────────────────────────────
+
+const { createClient } = require("redis");
+require("dotenv").config();
+
+if (!process.env.REDIS_URL) {
+  throw new Error(
+    "Missing required environment variable: REDIS_URL. Check your .env file or copy it from .env.example"
+  );
+}
+
+// Initialize the Redis Client
+const client = createClient({
+  url: process.env.REDIS_URL || "redis://localhost:6379",
+});
+
+// Error handling
+client.on("error", (err) => console.error("🚌 Redis Bus Breakdown:", err));
+
+// Connect to the instance
+const connectRedis = async () => {
+  if (!client.isOpen) {
+    await client.connect();
+    console.log("✅ Connected to Redis at:", process.env.REDIS_URL);
+  }
+};
+
+module.exports = { client, connectRedis };
+
+
+================================================================================
+                     PART 7: REDIS SERVICE INDEX/EXPORTS
+================================================================================
+
+FILE: packages/shared/redis/index.js
+────────────────────────────────────────────────────────────────────────────
+
+const { client, connectRedis } = require("./client");
+const createRoom = require("./room/createRoom");
+const getHost = require("./room/getHost");
+const getRoomFromCode = require("./room/getRoomFromCode");
+const getRoomStatus = require("./room/getRoomStatus");
+const getRoomIdForUser = require("./room/getRoomIdForUser");
+const cleanupRoom = require("./room/cleanupRoom");
+const getPlayers = require("./player/getPlayers");
+const getPlayersWithNicknames = require("./player/getPlayersWithNicknames");
+const addPlayer = require("./player/addPlayer");
+const setPlayerMetadata = require("./player/setPlayerMetadata");
+const removePlayer = require("./player/removePlayer");
+
+/**
+ * Game Logic Helpers
+ */
+const RedisService = {
+  createRoom,
+  getHost,
+  getRoomFromCode,
+  getRoomStatus,
+  getRoomIdForUser,
+  cleanupRoom,
+  getPlayers,
+  getPlayersWithNicknames,
+  addPlayer,
+  setPlayerMetadata,
+  removePlayer,
+};
+
+module.exports = { client, connectRedis, RedisService };
+
+
+================================================================================
+                    PART 8: REDIS ROOM OPERATIONS
+================================================================================
+
+FILE: packages/shared/redis/room/createRoom.js
+────────────────────────────────────────────────────────────────────────────
+
+const { client } = require("../client");
+
+// Create a new room
+const createRoom = async (roomId, hostId, roomCode) => {
+  // 1. Create the room hash
+  await client.hSet(`room:${roomId}`, {
+    host_id: hostId,
+    status: "WAITING",
+    round: "1",
+    code: roomCode,
+    created_at: Date.now(),
+  });
+
+  // 2. Set expiry on room hash (24 hours = 86400 seconds)
+  await client.expire(`room:${roomId}`, 86400);
+
+  // 3. Add host to the player list (First in = Driver)
+  await client.rPush(`room:${roomId}:players`, hostId);
+
+  // 4. Set expiry on player list (same as room)
+  await client.expire(`room:${roomId}:players`, 86400);
+
+  // 5. Store code -> roomId mapping for easy lookup with 24 hour expiry
+  await client.set(`code:${roomCode}`, roomId, { EX: 86400 });
+};
+
+module.exports = createRoom;
+
+
+FILE: packages/shared/redis/room/getHost.js
+────────────────────────────────────────────────────────────────────────────
+
+const { client } = require("../client");
+
+// Get current host (The Driver)
+const getHost = async (roomId) => {
+  return await client.hGet(`room:${roomId}`, "host_id");
+};
+
+module.exports = getHost;
+
+
+FILE: packages/shared/redis/room/getRoomFromCode.js
+────────────────────────────────────────────────────────────────────────────
+
+const { client } = require("../client");
+
+// Look up roomId from a room code
+const getRoomFromCode = async (roomCode) => {
+  return await client.get(`code:${roomCode}`);
+};
+
+module.exports = getRoomFromCode;
+
+
+FILE: packages/shared/redis/room/getRoomStatus.js
+────────────────────────────────────────────────────────────────────────────
+
+const { client } = require("../client");
+
+// Get room status
+const getRoomStatus = async (roomId) => {
+  return await client.hGet(`room:${roomId}`, "status");
+};
+
+module.exports = getRoomStatus;
+
+
+FILE: packages/shared/redis/room/getRoomIdForUser.js
+────────────────────────────────────────────────────────────────────────────
+
+const { client } = require("../client");
+
+// Look up roomId for a user (useful for reconnection)
+const getRoomIdForUser = async (userId) => {
+  // This would require scanning rooms - simpler approach is to store it separately
+  // For now, clients should provide roomCode on reconnect
+  return null; // TODO: Implement if needed
+};
+
+module.exports = getRoomIdForUser;
+
+
+FILE: packages/shared/redis/room/cleanupRoom.js
+────────────────────────────────────────────────────────────────────────────
+
+const { client } = require("../client");
+
+// Clean up all player metadata and room keys for a deleted room
+const cleanupRoom = async (roomId) => {
+  // Get all keys matching this room pattern
+  const pattern = `room:${roomId}*`;
+  const keys = await client.keys(pattern);
+
+  if (keys.length > 0) {
+    await client.del(...keys);
+  }
+};
+
+module.exports = cleanupRoom;
+
+
+================================================================================
+                    PART 9: REDIS PLAYER OPERATIONS
+================================================================================
+
+FILE: packages/shared/redis/player/getPlayers.js
+────────────────────────────────────────────────────────────────────────────
+
+const { client } = require("../client");
+
+// Get all players in order
+const getPlayers = async (roomId) => {
+  return await client.lRange(`room:${roomId}:players`, 0, -1);
+};
+
+module.exports = getPlayers;
+
+
+FILE: packages/shared/redis/player/getPlayersWithNicknames.js
+────────────────────────────────────────────────────────────────────────────
+
+const { client } = require("../client");
+
+// Get all players with their nicknames in a room
+const getPlayersWithNicknames = async (roomId) => {
+  const playerIds = await client.lRange(`room:${roomId}:players`, 0, -1);
+  const playersData = [];
+
+  for (const userId of playerIds) {
+    const nickname = await client.hGet(
+      `room:${roomId}:player:${userId}`,
+      "nickname",
+    );
+    playersData.push({ userId, nickname });
+  }
+
+  return playersData;
+};
+
+module.exports = getPlayersWithNicknames;
+
+
+FILE: packages/shared/redis/player/addPlayer.js
+────────────────────────────────────────────────────────────────────────────
+
+const { client } = require("../client");
+
+// Add a player to a room
+const addPlayer = async (roomId, playerId) => {
+  await client.rPush(`room:${roomId}:players`, playerId);
+};
+
+module.exports = addPlayer;
+
+
+FILE: packages/shared/redis/player/setPlayerMetadata.js
+────────────────────────────────────────────────────────────────────────────
+
+const { client } = require("../client");
+
+// Store player metadata (nickname, joinedAt, etc.)
+const setPlayerMetadata = async (roomId, userId, nickname) => {
+  await client.hSet(`room:${roomId}:player:${userId}`, {
+    nickname,
+    joinedAt: Date.now(),
+  });
+};
+
+module.exports = setPlayerMetadata;
+
+
+FILE: packages/shared/redis/player/removePlayer.js
+────────────────────────────────────────────────────────────────────────────
+
+const { client } = require("../client");
+
+// Remove a player and return the new host if the old one left
+const removePlayer = async (roomId, userId) => {
+  const currentHost = await client.hGet(`room:${roomId}`, "host_id");
+
+  // Remove player from the ordered list (using userId)
+  await client.lRem(`room:${roomId}:players`, 0, userId);
+
+  // Delete player metadata
+  await client.del(`room:${roomId}:player:${userId}`);
+
+  // Get the next person in line
+  const nextInLine = await client.lIndex(`room:${roomId}:players`, 0);
+
+  // If the person leaving was the host AND there's someone else left
+  if (currentHost === userId && nextInLine) {
+    await client.hSet(`room:${roomId}`, "host_id", nextInLine);
+    return nextInLine; // New Host ID (userId)
+  }
+
+  // If no one is left, return null (caller will cleanup entire room)
+  if (!nextInLine) {
+    return null; // Signals to caller to cleanup room
+  }
+
+  return currentHost; // Host remains the same
+};
+
+module.exports = removePlayer;
+
+
+================================================================================
+                   PART 10: INPUT VALIDATORS
+================================================================================
+
+FILE: packages/shared/validators.js
+────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Input validators for Stop the Bus game
+ */
+
+const validateUserId = (userId) => {
+  if (!userId || typeof userId !== "string") {
+    return { valid: false, error: "userId must be a non-empty string" };
+  }
+  if (userId.trim().length === 0) {
+    return { valid: false, error: "userId cannot be empty" };
+  }
+  if (userId.length > 100) {
+    return { valid: false, error: "userId too long (max 100 chars)" };
+  }
+  return { valid: true };
+};
+
+const validateNickname = (nickname) => {
+  if (!nickname || typeof nickname !== "string") {
+    return { valid: false, error: "nickname must be a non-empty string" };
+  }
+  if (nickname.trim().length === 0) {
+    return { valid: false, error: "nickname cannot be empty" };
+  }
+  if (nickname.length > 50) {
+    return { valid: false, error: "nickname too long (max 50 chars)" };
+  }
+  // Prevent XSS with basic check
+  if (/<[^>]*>/.test(nickname)) {
+    return { valid: false, error: "nickname contains invalid characters" };
+  }
+  return { valid: true };
+};
+
+const validateRoomCode = (roomCode) => {
+  if (!roomCode || typeof roomCode !== "string") {
+    return { valid: false, error: "roomCode must be a non-empty string" };
+  }
+  if (!/^\d{5}$/.test(roomCode)) {
+    return { valid: false, error: "roomCode must be exactly 5 digits" };
+  }
+  return { valid: true };
+};
+
+module.exports = {
+  validateUserId,
+  validateNickname,
+  validateRoomCode,
+};
+
+
+================================================================================
+                      PART 11: CUSTOM ERROR TYPES
+================================================================================
+
+FILE: packages/shared/errors.js
+────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Custom error types for Stop the Bus Socket.io handlers
+ */
+
+class SocketError extends Error {
+  constructor(code, message) {
+    super(message);
+    this.code = code;
+    this.name = "SocketError";
+  }
+}
+
+class RoomNotFoundError extends SocketError {
+  constructor() {
+    super("ROOM_NOT_FOUND", "Room not found or invalid room code");
+  }
+}
+
+class RoomNotWaitingError extends SocketError {
+  constructor() {
+    super("ROOM_NOT_WAITING", "This room is no longer accepting players");
+  }
+}
+
+class InvalidInputError extends SocketError {
+  constructor(field, reason) {
+    super("INVALID_INPUT", `Invalid ${field}: ${reason}`);
+  }
+}
+
+class NicknameTakenError extends SocketError {
+  constructor() {
+    super("NICKNAME_TAKEN", "Nickname already taken in this room");
+  }
+}
+
+module.exports = {
+  SocketError,
+  RoomNotFoundError,
+  RoomNotWaitingError,
+  InvalidInputError,
+  NicknameTakenError,
+};
+
+
+================================================================================
+                         ARCHITECTURE SUMMARY
+================================================================================
+
+EVENT FLOW:
+───────────
+
+1. CLIENT → SERVER: CREATE_ROOM { userId, nickname }
+   - Server validates inputs
+   - Generates random 5-digit code
+   - Creates room in Redis with 24h TTL
+   - Store player metadata
+   - Join Socket.io room
+   → SERVER → CLIENT: ROOM_CREATED { roomCode, roomId }
+   → SERVER → ALL: PASSENGER_JOINED { playerId, nickname, isDriver: true }
+
+2. CLIENT → SERVER: JOIN_ROOM { roomCode, userId, nickname }
+   - Server validates inputs
+   - Looks up roomId from code
+   - Checks room status (must be WAITING)
+   - Checks for duplicate nicknames
+   - Add player to Redis
+   - Join Socket.io room
+   → SERVER → ALL: PASSENGER_JOINED { playerId, nickname, isDriver: boolean }
+
+3. CLIENT: [Network disconnect]
+   - Server triggers 5-second grace period
+   - If CLIENT reconnects within 5s via JOIN_ROOM:
+     → Restores connection (socket mapping updated)
+     → SERVER → ALL: PLAYER_RECONNECTED { playerId }
+   - If 5s expires:
+     → Remove player from Redis
+     → If player was host: migrate to next in queue
+       → SERVER → ALL: HOST_MIGRATED { newHostId }
+     → If no players remain: cleanup entire room
+
+REDIS SCHEMA:
+─────────────
+
+room:{roomCode}:
+  - hash: { host_id, status, round, code, created_at }
+  - ttl: 24 hours
+
+room:{roomCode}:players
+  - list: [userId1, userId2, userId3, ...]  (ordered by join time)
+  - ttl: 24 hours
+
+room:{roomCode}:player:{userId}
+  - hash: { nickname, joinedAt }
+  - (no separate ttl - inherits from parent room)
+
+code:{roomCode}
+  - string: roomId (for quick lookup)
+  - ttl: 24 hours
+
+
+ERROR CODES:
+────────────
+
+ROOM_NOT_FOUND
+  - Room doesn't exist or code is invalid
+  - Status: Warn user, redirect to join page
+
+ROOM_NOT_WAITING
+  - Room is in play or finished
+  - Status: Inform user room has started
+
+INVALID_INPUT
+  - userId, nickname, or roomCode format invalid
+  - Status: Show validation error to user
+
+NICKNAME_TAKEN
+  - Another player in room has same nickname
+  - Status: Prompt user to choose different nickname
+
+CREATE_ROOM_FAILED / JOIN_ROOM_FAILED
+  - Generic errors (see message for details)
+  - Status: Log error, show generic message
+
+
+MEMORY MANAGEMENT:
+──────────────────
+
+- userSocketMap: Global userId → socket.id tracking
+  * Cleaned up on disconnect after grace period
+  * Prevents stale references to sockets
+
+- pendingDisconnects: Per-connection grace period timers
+  * Stored in memory during connection
+  * Cleaned up after 5s timeout or reconnection
+  * Prevents orphaned timers
+
+- Redis expiry: All keys auto-expire after 24h
+  * Prevents stale rooms from accumulating
+  * Atomic cleanup via keys pattern matching
+
+
+================================================================================
+                      DEPLOYMENT CHECKLIST
+================================================================================
+
+Environment Variables:
+  □ REDIS_URL → Set to production Redis instance
+  □ PORT → Set to desired port (default: 3000)
+  □ ALLOWED_ORIGINS → Set to comma-separated list of allowed client origins
+  □ NODE_ENV → Set to "production"
+
+Tests:
+  □ Unit tests for validators
+  □ Unit tests for error types
+  □ E2E test: Room creation flow
+  □ E2E test: Multi-player join
+  □ E2E test: Disconnection + reconnection within grace period
+  □ E2E test: Disconnection + grace period expiry
+  □ E2E test: Host migration on disconnect
+
+Monitoring:
+  □ Set up logging aggregation (CloudLogging, Datadog, etc.)
+  □ Monitor Redis connection status
+  □ Alert on error rate > threshold
+  □ Track room lifecycle (created, closed, expired)
+
+Performance:
+  □ Load test with 100+ concurrent players
+  □ Verify Redis latency < 50ms
+  □ Check memory usage grows linearly with players (not unbounded)
+
+Security:
+  □ Input validation is strict (XSS prevention on nicknames)
+  □ CORS restricted to known domains
+  □ Rate limiting on CREATE_ROOM/JOIN_ROOM
+  □ Consider authentication layer for production
+  □ SSL/TLS for Socket.io connections
+
+================================================================================
+                             END OF FILE
+================================================================================

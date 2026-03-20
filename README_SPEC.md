@@ -63,41 +63,51 @@ Validation occurs when a user navigates away from an input field (`OnBlur`).
 
 | Field     | Type    | Description                         |
 | :-------- | :------ | :---------------------------------- |
-| `host_id` | String  | Current Driver ID                   |
+| `host_id` | String  | Current Driver ID (userId)          |
 | `status`  | String  | WAITING, PLAYING, SCRAMBLE, SCORING |
 | `letter`  | String  | Current round letter                |
 | `round`   | Integer | 1 through 5                         |
+| `code`    | String  | 5-digit room code                   |
 
 ### Room State Schema (Redis)
 
-- `room:[ID]` (Hash):
-  - `host_id`: socket.id of the driver.
-  - `status`: `LOBBY`, `PLAYING`, `SCRAMBLE`, `SCORING`.
+- `room:[ID]` (Hash): Main room state (with auto-expiry: 24h)
+  - `host_id`: userId of the driver.
+  - `status`: `WAITING`, `PLAYING`, `SCRAMBLE`, `SCORING`.
   - `letter`: The char for the current round.
   - `round`: Current round number (1-5).
-- `room:[ID]:players` (List): Ordered list of socket IDs.
-- `room:[ID]:answers:[round]` (Hash): `{ [playerId]: JSON_STRING_OF_ANSWERS }`.
+  - `code`: 5-digit room code.
+- `room:[ID]:players` (List): Ordered list of userIds. (with auto-expiry: 24h)
+- `room:[ID]:player:[userId]` (Hash): Player metadata
+  - `nickname`: Player's nickname
+  - `joinedAt`: Timestamp when player joined
+- `code:[ROOMCODE]` (String): Mapping to roomId for quick lookup (with auto-expiry: 24h)
+- `room:[ID]:answers:[round]` (Hash): `{ [userId]: JSON_STRING_OF_ANSWERS }`
 
 ### Player List (`room:[ID]:players`)
 
-- Redis List: `[p1_id, p2_id, p3_id...]` (Maintains join order).
+- Redis List: `[userId1, userId2, userId3...]` (Maintains join order by userId, not socket.id)
 
 ---
 
 ## 6. Comprehensive Event List
 
-| Event                | Direction | Payload                                | Description                                     |
-| :------------------- | :-------- | :------------------------------------- | :---------------------------------------------- |
-| **JOIN_ROOM**        | C -> S    | `{ roomId, nickname }`                 | Joins room, sets `socket.currentRoom`.          |
-| **PASSENGER_JOINED** | S -> R    | `{ playerId, nickname, isDriver }`     | Syncs lobby list to all clients.                |
-| **HOST_MIGRATED**    | S -> R    | `{ newHostId }`                        | Triggered after 5s grace period if host leaves. |
-| **START_GAME**       | C -> S    | `null`                                 | Host only. Transitions room to `PLAYING`.       |
-| **ROUND_START**      | S -> R    | `{ letter, round }`                    | Sends random letter; starts client timers.      |
-| **STOP_CLICKED**     | C -> S    | `null`                                 | First player to finish hits this.               |
-| **START_SCRAMBLE**   | S -> R    | `{ timeRemaining: 3 }`                 | Global 3s countdown for all other players.      |
-| **SUBMIT_WORDS**     | C -> S    | `{ words: { category: word } }`        | Clients auto-emit when scramble hits 0.         |
-| **ROUND_RESULTS**    | S -> R    | `{ scores: {}, nextRoundReady: bool }` | Calculation of unique/shared words.             |
-| **GAME_OVER**        | S -> R    | `{ podium: [] }`                       | Final scores after 5 rounds.                    |
+| Event                  | Direction | Payload                                | Description                                     |
+| :--------------------- | :-------- | :------------------------------------- | :---------------------------------------------- |
+| **CREATE_ROOM**        | C -> S    | `{ userId, nickname }`                 | Creates a new room, receives room code.         |
+| **ROOM_CREATED**       | S -> C    | `{ roomCode, roomId }`                 | Sent to host with the room code to share.       |
+| **JOIN_ROOM**          | C -> S    | `{ roomCode, userId, nickname }`       | Joins room by code, triggers validation.        |
+| **PASSENGER_JOINED**   | S -> R    | `{ playerId, nickname, isDriver }`     | Broadcast to room on successful join.           |
+| **PLAYER_RECONNECTED** | S -> R    | `{ playerId }`                         | Player reconnected within 5s grace period.      |
+| **HOST_MIGRATED**      | S -> R    | `{ newHostId }`                        | Triggered after 5s grace period if host leaves. |
+| **ERROR**              | S -> C    | `{ code, message }`                    | Error response with error code and message.     |
+| **START_GAME**         | C -> S    | `null`                                 | Host only. Transitions room to `PLAYING`.       |
+| **ROUND_START**        | S -> R    | `{ letter, round }`                    | Sends random letter; starts client timers.      |
+| **STOP_CLICKED**       | C -> S    | `null`                                 | First player to finish hits this.               |
+| **START_SCRAMBLE**     | S -> R    | `{ timeRemaining: 3 }`                 | Global 3s countdown for all other players.      |
+| **SUBMIT_WORDS**       | C -> S    | `{ words: { category: word } }`        | Clients auto-emit when scramble hits 0.         |
+| **ROUND_RESULTS**      | S -> R    | `{ scores: {}, nextRoundReady: bool }` | Calculation of unique/shared words.             |
+| **GAME_OVER**          | S -> R    | `{ podium: [] }`                       | Final scores after 5 rounds.                    |
 
 ---
 

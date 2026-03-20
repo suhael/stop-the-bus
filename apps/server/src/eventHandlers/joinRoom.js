@@ -1,57 +1,120 @@
 const { RedisService } = require("@stop-the-bus/shared/redis");
+const {
+  validateUserId,
+  validateNickname,
+  validateRoomCode,
+} = require("@stop-the-bus/shared/validators");
+const {
+  InvalidInputError,
+  RoomNotFoundError,
+  RoomNotWaitingError,
+  NicknameTakenError,
+} = require("@stop-the-bus/shared/errors");
 
 // Event: Joining a Room
-const joinRoom = (socket, io, pendingDisconnects) => {
-  return async ({ roomCode, nickname }) => {
-    if (pendingDisconnects.has(socket.id)) {
-      clearTimeout(pendingDisconnects.get(socket.id));
-      pendingDisconnects.delete(socket.id);
-      console.log(`✨ Passenger ${nickname} returned just in time!`);
-      return; // They are already in the Redis list/room, no need to re-add
-    }
-    try {
-      // 1. Look up roomId from the room code
+const joinRoom = (socket, io, pendingDisconnects, userSocketMap) => {
+  return async ({ roomCode, userId, nickname }) => {
+    // Handle reconnection from grace period
+    if (pendingDisconnects.has(userId)) {
+      clearTimeout(pendingDisconnects.get(userId));
+      pendingDisconnects.delete(userId);
+      console.log(`✨ Player ${nickname} (${userId}) returned just in time!`);
+
+      // Look up roomId from the code sent by client
       const roomId = await RedisService.getRoomFromCode(roomCode);
       if (!roomId) {
-        socket.emit("ERROR", { message: "Invalid room code." });
-        return;
-      }
-
-      // 2. Check if room is still in WAITING/LOBBY status
-      const roomStatus = await RedisService.getRoomStatus(roomId);
-      if (roomStatus !== "WAITING") {
         socket.emit("ERROR", {
-          message: "This room is no longer accepting players.",
+          code: "ROOM_NOT_FOUND",
+          message: "Room no longer exists",
         });
         return;
       }
 
-      // 3. Attach the roomId to the socket instance for the disconnect listener
+      // Restore connection for this userId
+      userSocketMap.set(userId, socket.id);
+      socket.currentUserId = userId;
       socket.currentRoom = roomId;
-      socket.nickname = nickname;
-
-      // 4. Physical join to the Socket.io room
       socket.join(roomId);
 
-      // 5. Add player to room in Redis (if not already there)
-      // Check if player already exists (from reconnect)
-      const players = await RedisService.getPlayers(roomId);
-      if (!players.includes(socket.id)) {
-        await RedisService.addPlayer(roomId, socket.id);
+      io.to(roomId).emit("PLAYER_RECONNECTED", { playerId: userId });
+      return;
+    }
+
+    try {
+      // 1. Validate inputs
+      const userIdValidation = validateUserId(userId);
+      if (!userIdValidation.valid) {
+        throw new InvalidInputError("userId", userIdValidation.error);
       }
 
-      console.log(`✅ ${nickname} (${socket.id}) boarded Bus: ${roomId}`);
+      const nicknameValidation = validateNickname(nickname);
+      if (!nicknameValidation.valid) {
+        throw new InvalidInputError("nickname", nicknameValidation.error);
+      }
 
-      // 6. Broadcast to the room
+      const roomCodeValidation = validateRoomCode(roomCode);
+      if (!roomCodeValidation.valid) {
+        throw new InvalidInputError("roomCode", roomCodeValidation.error);
+      }
+
+      // 2. Look up roomId from the room code
+      const roomId = await RedisService.getRoomFromCode(roomCode);
+      if (!roomId) {
+        throw new RoomNotFoundError();
+      }
+
+      // 3. Check if room is still in WAITING status
+      const roomStatus = await RedisService.getRoomStatus(roomId);
+      if (roomStatus !== "WAITING") {
+        throw new RoomNotWaitingError();
+      }
+
+      // 4. Check for duplicate nicknames
+      const existingPlayers =
+        await RedisService.getPlayersWithNicknames(roomId);
+      if (existingPlayers.some((p) => p.nickname === nickname)) {
+        throw new NicknameTakenError();
+      }
+
+      // 5. Track userId -> socket.id mapping
+      userSocketMap.set(userId, socket.id);
+
+      // 6. Attach the roomId and userId to the socket
+      socket.currentRoom = roomId;
+      socket.currentUserId = userId;
+      socket.nickname = nickname;
+      socket.reconnectRoom = roomId; // For reconnection handling
+
+      // 7. Physical join to the Socket.io room
+      socket.join(roomId);
+
+      // 8. Add player to room in Redis (using userId, not socket.id)
+      const players = await RedisService.getPlayers(roomId);
+      if (!players.includes(userId)) {
+        await RedisService.addPlayer(roomId, userId);
+        await RedisService.setPlayerMetadata(roomId, userId, nickname);
+      }
+
+      console.log(`✅ ${nickname} (${userId}) boarded Bus: ${roomId}`);
+
+      // 9. Broadcast PASSENGER_JOINED to everyone including themselves
       const hostId = await RedisService.getHost(roomId);
       io.to(roomId).emit("PASSENGER_JOINED", {
-        playerId: socket.id,
+        playerId: userId,
         nickname: nickname,
-        isDriver: socket.id === hostId,
+        isDriver: userId === hostId,
       });
     } catch (err) {
-      console.error("🚨 Boarding Error:", err);
-      socket.emit("ERROR", { message: "Could not join the bus." });
+      console.error("🚨 Boarding Error:", {
+        userId: arguments[0]?.userId,
+        roomCode: arguments[0]?.roomCode,
+        error: err.message,
+        code: err.code,
+      });
+      socket.emit("ERROR", {
+        code: err.code || "JOIN_ROOM_FAILED",
+        message: err.message || "Could not join the bus.",
+      });
     }
   };
 };
