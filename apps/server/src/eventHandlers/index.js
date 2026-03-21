@@ -29,7 +29,7 @@ const registerSocketHandlers = (io) => {
     );
     socket.on("START_GAME", startGame(socket, io));
     socket.on("STOP_CLICKED", stopBus(socket, io, roomScoringTimeouts));
-    socket.on("SUBMIT_WORDS", submitWords(socket, io));
+    socket.on("SUBMIT_WORDS", submitWords(socket, io, roomScoringTimeouts));
     socket.on(
       "disconnect",
       disconnect(socket, io, pendingDisconnects, userSocketMap),

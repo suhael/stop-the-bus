@@ -7,6 +7,7 @@ const {
   NoLettersAvailableError,
   GameAlreadyInProgressError,
 } = require("@stop-the-bus/shared/errors");
+const { getCategories } = require("@stop-the-bus/shared/logic/dictionary");
 
 // Generate a random letter that hasn't been used in this game yet
 const getRandomUnusedLetter = async (roomId) => {
@@ -63,7 +64,7 @@ const startGame = (socket, io) => {
 
       // 2. Get current room status
       const roomStatus = await RedisService.getRoomStatus(roomId);
-      if (roomStatus !== "WAITING") {
+      if (roomStatus !== "WAITING" && roomStatus !== "RESULTS_SHOWN") {
         throw new GameAlreadyInProgressError();
       }
 
@@ -73,10 +74,15 @@ const startGame = (socket, io) => {
         throw new InsufficientPlayersError();
       }
 
-      // 4. Get current round
-      const currentRound = await RedisService.getRound(roomId);
-      if (!currentRound) {
+      // 4. Get current round and increment if we are moving to the next round
+      let currentRoundStr = await RedisService.getRound(roomId);
+      if (!currentRoundStr) {
         throw new Error("Could not retrieve round number");
+      }
+      
+      let currentRound = parseInt(currentRoundStr, 10);
+      if (roomStatus === "RESULTS_SHOWN") {
+        currentRound += 1;
       }
 
       // 5. Select a random letter that hasn't been used
@@ -86,6 +92,9 @@ const startGame = (socket, io) => {
       const transaction = client.multi();
       transaction.hSet(`room:${roomId}`, "status", "PLAYING");
       transaction.hSet(`room:${roomId}`, "letter", letter);
+      if (roomStatus === "RESULTS_SHOWN") {
+        transaction.hSet(`room:${roomId}`, "round", currentRound.toString());
+      }
       await transaction.exec();
 
       console.log(
@@ -95,7 +104,8 @@ const startGame = (socket, io) => {
       // 7. Emit ROUND_START to the room with letter and round number
       io.to(roomId).emit("ROUND_START", {
         letter,
-        round: parseInt(currentRound),
+        round: currentRound,
+        categories: getCategories(),
       });
     } catch (err) {
       console.error("🚨 Start Game Error:", {

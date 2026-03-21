@@ -5,7 +5,10 @@ const { calculateScores } = require("@stop-the-bus/shared/logic/scoring");
 // payload: { }
 const roundResults = (io) => async (roomId) => {
   try {
-    // 1. Fetch current round, all answers, players, and room state (for letter and stopClickedBy)
+    // 1. Give last-second network packets a moment to finish writing to Redis
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    // 2. Fetch current round, all answers, players, and room state (for letter and stopClickedBy)
     const [round, playerAnswers, players, room] = await Promise.all([
       RedisService.getRound(roomId),
       RedisService.getRoomAnswers(roomId, await RedisService.getRound(roomId)),

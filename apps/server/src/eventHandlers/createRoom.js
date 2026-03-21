@@ -5,6 +5,7 @@ const {
   validateNickname,
 } = require("@stop-the-bus/shared/validators");
 const { InvalidInputError } = require("@stop-the-bus/shared/errors");
+const { getCategories } = require("@stop-the-bus/shared/logic/dictionary");
 
 // Generate a unique alphanumeric room code with atomic collision detection
 const generateUniqueRoomCode = async () => {
@@ -79,14 +80,16 @@ const createRoom = (socket, io, userSocketMap) => {
 
       // 6. Broadcast PASSENGER_JOINED so the creator sees themselves
       // (No need to call getHost again - we know userId is the host)
+      const categories = getCategories();
       io.to(roomId).emit("PASSENGER_JOINED", {
         playerId: userId,
         nickname: cleanNickname,
         isDriver: true,
+        categories,
       });
 
       // 7. Return the code to the client so they can share it
-      socket.emit("ROOM_CREATED", { roomCode, roomId });
+      socket.emit("ROOM_CREATED", { roomCode, roomId, categories });
     } catch (err) {
       console.error("🚨 Room Creation Error:", {
         userId: arguments[0]?.userId,

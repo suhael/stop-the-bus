@@ -1,7 +1,10 @@
+const { isValidWord } = require('./dictionary');
+
 /**
  * Calculate scores for all players based on their answers in a round
  *
  * CRITICAL FIX: Now validates letter and uses per-category word frequency
+ * NEW FIX: Uses server-side SQLite dictionary cross-reference.
  *
  * @param {Object} playerAnswers - Object mapping playerId to their category answers
  *   Format: { "userId1": { "Name": "Alice", "Country": "France", ... }, ... }
@@ -36,6 +39,11 @@ const calculateScores = (playerAnswers, letter, speedBonusWinnerId) => {
       const normalizedWord = word.toLowerCase().trim();
       if (!normalizedWord.startsWith(letter.toLowerCase())) {
         // Word doesn't start with correct letter - skip it (0 points)
+        continue;
+      }
+
+      // SERVER DICTIONARY VALIDATION (Cross-reference)
+      if (!isValidWord(category, letter, normalizedWord)) {
         continue;
       }
 
@@ -77,6 +85,11 @@ const calculateScores = (playerAnswers, letter, speedBonusWinnerId) => {
 
       // LETTER VALIDATION: Skip if doesn't start with correct letter
       if (!normalizedWord.startsWith(letter.toLowerCase())) {
+        continue;
+      }
+
+      // SERVER DICTIONARY VALIDATION (Cross-reference)
+      if (!isValidWord(category, letter, normalizedWord)) {
         continue;
       }
 

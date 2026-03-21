@@ -1,4 +1,5 @@
 const { RedisService } = require("@stop-the-bus/shared/redis");
+const roundResults = require("./roundResults");
 
 // Event: Stop the Bus - Triggered when a player finishes all categories
 const stopBus = (socket, io, roomScoringTimeouts) => {
@@ -72,6 +73,9 @@ const stopBus = (socket, io, roomScoringTimeouts) => {
           io.to(roomId).emit("SCORING_PHASE_BEGIN", {
             timestamp: Date.now(),
           });
+
+          // Trigger scoring logic
+          await roundResults(io)(roomId);
         } catch (err) {
           console.error(
             `❌ Error transitioning to SCORING phase (${roomId}):`,

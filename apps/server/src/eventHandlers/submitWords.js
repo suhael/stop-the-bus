@@ -1,8 +1,9 @@
 const { RedisService } = require("@stop-the-bus/shared/redis");
+const roundResults = require("./roundResults");
 
 // SUBMIT_WORDS event handler
 // payload: { answers: { category1: word1, ... } }
-const submitWords = (socket, io) => async (payload) => {
+const submitWords = (socket, io, roomScoringTimeouts) => async (payload) => {
   try {
     const roomId = socket.currentRoom;
     const userId = socket.currentUserId;
@@ -44,11 +45,18 @@ const submitWords = (socket, io) => async (payload) => {
       RedisService.getRoomAnswers(roomId, round),
     ]);
     if (Object.keys(answers).length >= players.length) {
+      // Clear the fallback timeout in roomScoringTimeouts since everyone submitted
+      if (roomScoringTimeouts && roomScoringTimeouts.has(roomId)) {
+        clearTimeout(roomScoringTimeouts.get(roomId));
+        roomScoringTimeouts.delete(roomId);
+      }
+
       // All players submitted: trigger scoring (emit internal event or call scoring logic)
       // NOTE: In rare cases, two players submitting at the same time may both trigger this event.
       // If you want to guarantee only one scoring trigger, use a Redis lock or status flag here.
       io.to(roomId).emit("ALL_WORDS_SUBMITTED", { round });
-      // (Scoring logic will be handled by ROUND_RESULTS handler)
+      // Execute the scoring logic
+      await roundResults(io)(roomId);
     }
     // Optionally: acknowledge submission
     socket.emit("WORDS_SUBMITTED", { round });

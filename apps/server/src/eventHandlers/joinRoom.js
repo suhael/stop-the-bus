@@ -10,6 +10,7 @@ const {
   RoomNotWaitingError,
   NicknameTakenError,
 } = require("@stop-the-bus/shared/errors");
+const { getCategories } = require("@stop-the-bus/shared/logic/dictionary");
 
 // Event: Joining a Room
 const joinRoom = (socket, io, pendingDisconnects, userSocketMap) => {
@@ -117,6 +118,7 @@ const joinRoom = (socket, io, pendingDisconnects, userSocketMap) => {
         playerId: userId,
         nickname: cleanNickname,
         isDriver: userId === hostId,
+        categories: getCategories(),
       });
     } catch (err) {
       console.error("🚨 Boarding Error:", {

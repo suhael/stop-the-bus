@@ -1,4 +1,5 @@
 const { createClient } = require("redis");
+const seedWords = require("./seedWords");
 
 async function seed() {
   const client = createClient({
@@ -8,17 +9,11 @@ async function seed() {
   const connectRedis = async () => {
     if (!client.isOpen) {
       await client.connect();
-      console.log("✅ Connected to Redis at:", process.env.REDIS_URL);
+      console.log("✅ Connected to Redis at:", process.env.REDIS_URL || "redis://localhost:6379");
     }
   };
 
   await connectRedis();
-
-  console.log("🚌 Seeding Stop the Bus categories...");
-
-  // Seed the standard categories into a Set
-  const categories = ["Name", "Country", "Food", "Animal", "Brand"];
-  await client.sAdd("game:categories", categories);
 
   // Create a 'Global' test room for dev
   await client.hSet("room:DEV123", {
@@ -29,6 +24,9 @@ async function seed() {
 
   console.log("✅ Seed complete. Redis is ready.");
   await client.disconnect();
+
+  console.log("📖 Seeding Stop the Bus words to SQLite...");
+  seedWords();
 }
 
 seed();
