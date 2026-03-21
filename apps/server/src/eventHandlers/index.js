@@ -2,7 +2,9 @@ const createRoom = require("./createRoom");
 const joinRoom = require("./joinRoom");
 const disconnect = require("./disconnect");
 const startGame = require("./startGame");
+
 const stopBus = require("./stopBus");
+const submitWords = require("./submitWords");
 
 /**
  * Register all socket.io event handlers
@@ -27,6 +29,7 @@ const registerSocketHandlers = (io) => {
     );
     socket.on("START_GAME", startGame(socket, io));
     socket.on("STOP_CLICKED", stopBus(socket, io, roomScoringTimeouts));
+    socket.on("SUBMIT_WORDS", submitWords(socket, io));
     socket.on(
       "disconnect",
       disconnect(socket, io, pendingDisconnects, userSocketMap),

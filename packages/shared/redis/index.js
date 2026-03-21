@@ -15,6 +15,8 @@ const getPlayersWithNicknames = require("./player/getPlayersWithNicknames");
 const addPlayer = require("./player/addPlayer");
 const setPlayerMetadata = require("./player/setPlayerMetadata");
 const removePlayer = require("./player/removePlayer");
+const savePlayerAnswers = require("./room/savePlayerAnswers");
+const getRoomAnswers = require("./room/getRoomAnswers");
 
 /**
  * Game Logic Helpers
@@ -36,6 +38,8 @@ const RedisService = {
   addPlayer,
   setPlayerMetadata,
   removePlayer,
+  savePlayerAnswers,
+  getRoomAnswers,
 };
 
 module.exports = { client, connectRedis, RedisService };
