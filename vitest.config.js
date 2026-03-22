@@ -10,6 +10,9 @@ export default defineConfig({
   test: {
     globals: true,
     environment: "node",
-    include: ["packages/shared/logic/**/*.test.js"],
+    include: [
+      "packages/shared/logic/**/*.test.ts",
+      "packages/shared/logic/**/*.test.js",
+    ],
   },
 });

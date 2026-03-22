@@ -19,7 +19,12 @@
     "test": "vitest"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/express": "^5.0.6",
     "nodemon": "^3.0.0",
     "vitest": "^4.1.0"
+  },
+  "dependencies": {
+    "typescript": "^5.9.3"
   }
 }
