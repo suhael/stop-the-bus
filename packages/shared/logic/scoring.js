@@ -1,4 +1,4 @@
-const { isValidWord } = require('./dictionary');
+const { isValidWord } = require("./dictionary");
 
 /**
  * Calculate scores for all players based on their answers in a round
@@ -19,10 +19,10 @@ const calculateScores = (playerAnswers, letter, speedBonusWinnerId) => {
   const scores = {};
 
   // Word frequency tracking - NESTED BY CATEGORY for accurate uniqueness
-  // Structure: { "Name": { "alice": [playerIds], "bob": [...] }, "Country": { ... } }
+  // Structure: { "Name": { "alice": [playerIds], ... }, ... }
   const wordFrequencyByCategory = {};
 
-  // First pass: build per-category word frequency map
+  // First pass: build per-category word frequency map (uniqueness only within each category)
   for (const [playerId, answers] of Object.entries(playerAnswers)) {
     if (!answers || typeof answers !== "object") {
       scores[playerId] = 0;
@@ -38,7 +38,6 @@ const calculateScores = (playerAnswers, letter, speedBonusWinnerId) => {
       // LETTER VALIDATION: Check word starts with the correct letter (case-insensitive)
       const normalizedWord = word.toLowerCase().trim();
       if (!normalizedWord.startsWith(letter.toLowerCase())) {
-        // Word doesn't start with correct letter - skip it (0 points)
         continue;
       }
 
@@ -52,12 +51,10 @@ const calculateScores = (playerAnswers, letter, speedBonusWinnerId) => {
         wordFrequencyByCategory[category] = {};
       }
 
-      // Track player for this word in this category
+      // Track player for this word in this category only
       if (!wordFrequencyByCategory[category][normalizedWord]) {
         wordFrequencyByCategory[category][normalizedWord] = [];
       }
-
-      // Only add if this player hasn't already used this word in this category
       if (
         !wordFrequencyByCategory[category][normalizedWord].includes(playerId)
       ) {

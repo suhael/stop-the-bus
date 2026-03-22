@@ -5,7 +5,7 @@ describe("Scoring Logic - calculateScores()", () => {
   describe("Unique vs Shared Words", () => {
     it("should award 10 points for unique words", () => {
       const playerAnswers = {
-        player1: { Name: "Alice", Country: "Austria", Food: "Apple" },
+        player1: { Name: "Alice", Country: "Albania", Food: "Apple" },
         player2: { Name: "Albert", Country: "Argentina", Food: "Apricot" },
       };
 
@@ -19,15 +19,15 @@ describe("Scoring Logic - calculateScores()", () => {
 
     it("should award 5 points for shared words", () => {
       const playerAnswers = {
-        player1: { Name: "Alice", Country: "Austria", Food: "Apple" },
-        player2: { Name: "Alice", Country: "Austria", Food: "Apricot" },
+        player1: { Name: "Alice", Country: "Albania", Food: "Apple" },
+        player2: { Name: "Alice", Country: "Albania", Food: "Apricot" },
       };
 
       const scores = calculateScores(playerAnswers, "A", "player1");
 
-      // player1: 2 shared words (Alice, Austria) + 1 unique (Apple) + 3 speed bonus = 2*5 + 10 + 3 = 23 points
+      // player1: 2 shared words (Alice, Albania) + 1 unique (Apple) + 3 speed bonus = 2*5 + 10 + 3 = 23 points
       expect(scores.player1).toBe(23);
-      // player2: 2 shared words (Alice, Austria) + 1 unique (Apricot) = 2*5 + 10 = 20 points
+      // player2: 2 shared words (Alice, Albania) + 1 unique (Apricot) = 2*5 + 10 = 20 points
       expect(scores.player2).toBe(20);
     });
 
@@ -35,31 +35,31 @@ describe("Scoring Logic - calculateScores()", () => {
       const playerAnswers = {
         player1: {
           Name: "Alice",
-          Country: "Austria",
+          Country: "Albania",
           Food: "Apple",
-          Animal: "Ant",
+          Animal: "Antelope",
         },
         player2: {
           Name: "Alice",
           Country: "Argentina",
           Food: "Apple",
-          Animal: "Alligator",
+          Animal: "Antelope",
         },
         player3: {
           Name: "Albert",
-          Country: "Austria",
+          Country: "Albania",
           Food: "Apricot",
-          Animal: "Ant",
+          Animal: "Antelope",
         },
       };
 
       const scores = calculateScores(playerAnswers, "A", "player1");
 
-      // player1: Alice (shared, 5), Austria (shared, 5), Apple (shared, 5), Ant (shared, 5) + speed bonus = 20 + 3 = 23
+      // player1: Alice (shared, 5), Albania (shared, 5), Apple (shared, 5), Antelope (shared, 5) + speed bonus = 20 + 3 = 23
       expect(scores.player1).toBe(23);
-      // player2: Alice (shared, 5), Argentina (unique, 10), Apple (shared, 5), Alligator (unique, 10) = 30
-      expect(scores.player2).toBe(30);
-      // player3: Albert (unique, 10), Austria (shared, 5), Apricot (unique, 10), Ant (shared, 5) = 30
+      // player2: Alice (shared, 5), Argentina (unique, 10), Apple (shared, 5), Antelope (shared, 5) = 25
+      expect(scores.player2).toBe(25);
+      // player3: Albert (unique, 10), Albania (shared, 5), Apricot (unique, 10), Antelope (shared, 5) = 30
       expect(scores.player3).toBe(30);
     });
   });
@@ -261,8 +261,8 @@ describe("Scoring Logic - calculateScores()", () => {
 
       // player1: Alice (unique, 10) + Belgium (REJECTED, 0) + Ant (unique, 10) + speed bonus = 23
       expect(scores.player1).toBe(23);
-      // player2: Austria (unique, 10) + Austria (unique, 10) + Bear (REJECTED, 0) = 20
-      expect(scores.player2).toBe(20);
+      // player2: Austria (shared, 5) + Austria (shared, 5) + Bear (REJECTED, 0) = 10
+      expect(scores.player2).toBe(10);
     });
   });
 
@@ -284,7 +284,7 @@ describe("Scoring Logic - calculateScores()", () => {
       const scores = calculateScores(playerAnswers, "A", "player1");
 
       // player1: Apple in Name (unique, 10) + Apple in Country (unique, 10) + Apple in Food (unique, 10) + speed bonus = 33
-      // Cross-category are scored independently! Apple doesn't mark as "shared" across categories
+      // Cross-category are scored independently, so Apple is unique in each category for player1
       expect(scores.player1).toBe(33);
       // player2: Alice (unique, 10) + Austria (unique, 10) + Apricot (unique, 10) = 30
       expect(scores.player2).toBe(30);
