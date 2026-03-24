@@ -61,9 +61,40 @@
 ## 6. Tech Stack
 
 - Expo (React Native)
+- TypeScript
 - socket.io-client
-- Local SQLite for word validation (optional, for instant feedback)
+- Local SQLite (`expo-sqlite`)
+- `expo-asset` (for bundling the dictionary)
+- `@react-native-async-storage/async-storage` (for session persistence)
 
 ---
 
-This spec ensures full compatibility with the backend and a smooth mobile experience.
+## 7. Architecture & State Management
+
+The mobile app relies on handling three distinct types of state to ensure a smooth, lag-free experience while maintaining server authority:
+
+1. **Server State (Socket.io):** Real-time events orchestrated by the backend (e.g., lobby updates, remote scramble timers, official round results).
+2. **Local Knowledge (SQLite):** A bundled `words.db` file used strictly for instant "On Blur" validation, providing zero-latency UI feedback (Green/Red inputs) without waiting for network requests.
+3. **Global UI State:** React Context/State tracking the current active screen, the player's nickname, local timer visualizations, and the persistent `userId`.
+
+## 8. Folder Layout
+
+To keep the monorepo clean and the app modular, the Expo project (`apps/mobile`) follows this structure:
+
+```text
+apps/mobile/
+├── assets/
+│   └── words.db           <-- Copied from backend for "Double-Check" validation
+├── src/
+│   ├── api/               <-- Socket.io initialization & event listeners
+│   ├── components/        <-- Reusable UI (CategoryInput, BusTimer, PlayerCard)
+│   ├── context/           <-- React Contexts (SocketProvider, GameProvider)
+│   ├── db/                <-- SQLite setup, asset copying, and query logic
+│   ├── hooks/             <-- Custom hooks (useSocket, useGameLoop, useValidation)
+│   ├── screens/           <-- Main views (Lobby, Gameplay, Scramble, Results)
+│   ├── theme/             <-- Colors, spacing, and typography
+│   └── utils/             <-- Helpers (AsyncStorage wrappers, string formatters)
+├── App.tsx                <-- Entry point with Context Providers
+├── metro.config.js        <-- Custom config to resolve monorepo workspaces
+└── app.json               <-- Expo configuration
+```
