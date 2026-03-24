@@ -1,5 +1,5 @@
 import { RedisService } from "@stop-the-bus/shared/redis";
-import roundResults from "./roundResults";
+import roundResults from "./roundResults.ts";
 
 // SUBMIT_WORDS event handler
 // payload: { answers: { category1: word1, ... } }

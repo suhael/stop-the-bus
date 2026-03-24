@@ -1,4 +1,4 @@
-import { client } from "../client";
+import { client } from "../client.ts";
 
 // Clean up all player metadata and room keys for a deleted room
 // Uses SCAN instead of KEYS to avoid blocking Redis on large datasets

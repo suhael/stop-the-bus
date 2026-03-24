@@ -1,4 +1,4 @@
-import { client } from "../client";
+import { client } from "../client.ts";
 
 // Add a player to a room
 export const addPlayer = async (roomId: string, playerId: string): Promise<void> => {

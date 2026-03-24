@@ -1,5 +1,5 @@
 import { createClient } from "redis";
-import seedWords from "./seedWords";
+import seedWords from "./seedWords.ts";
 
 async function seed() {
   const client = createClient({

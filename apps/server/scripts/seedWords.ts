@@ -1,8 +1,10 @@
 import path from 'path';
+import { fileURLToPath } from 'url';
 import Database from 'better-sqlite3';
 import fs from 'fs';
 import { parse } from 'csv-parse/sync';
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dbPath = process.env.SQLITE_DB_PATH || path.join(__dirname, '../../../data/game.db');
 const csvPath = process.env.WORDS_CSV_PATH || path.join(__dirname, '../../../data/words.csv');
 

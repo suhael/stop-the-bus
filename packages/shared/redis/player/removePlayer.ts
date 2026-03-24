@@ -1,4 +1,4 @@
-import { client } from "../client";
+import { client } from "../client.ts";
 
 // Remove a player and return the new host if the old one left
 export const removePlayer = async (roomId: string, userId: string): Promise<string | null> => {

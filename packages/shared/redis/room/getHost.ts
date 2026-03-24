@@ -1,4 +1,4 @@
-import { client } from "../client";
+import { client } from "../client.ts";
 
 // Get current host (The Driver)
 export const getHost = async (roomId: string): Promise<string | undefined> => {

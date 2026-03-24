@@ -1,11 +1,11 @@
 {
   "name": "@stop-the-bus/server",
   "version": "1.0.0",
-  "main": "src/server.js",
+  "main": "src/server.ts",
   "scripts": {
-    "start": "node src/server.js",
-    "dev": "nodemon src/server.js",
-    "seed": "node scripts/seed.js"
+    "start": "node src/server.ts",
+    "dev": "nodemon src/server.ts",
+    "seed": "node scripts/seed.ts"
   },
   "dependencies": {
     "better-sqlite3": "^12.8.0",

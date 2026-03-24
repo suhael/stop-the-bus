@@ -1,6 +1,16 @@
 {
   "name": "@stop-the-bus/shared",
   "version": "1.0.0",
-  "main": "index.js",
-  "description": "Shared utilities and constants for Stop the Bus"
+  "description": "Shared utilities and constants for Stop the Bus",
+  "main": "index.ts",
+  "exports": {
+    ".": "./index.ts",
+    "./validators": "./validators.ts",
+    "./errors": "./errors.ts",
+    "./constants": "./constants.ts",
+    "./logic/scoring": "./logic/scoring.ts",
+    "./logic/dictionary": "./logic/dictionary.ts",
+    "./redis": "./redis/index.ts",
+    "./redis/*": "./redis/*.ts"
+  }
 }

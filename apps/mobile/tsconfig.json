@@ -5,6 +5,12 @@
     "paths": {
       "@/*": [
         "./*"
+      ],
+      "@stop-the-bus/shared": [
+        "../../packages/shared/index.ts"
+      ],
+      "@stop-the-bus/shared/*": [
+        "../../packages/shared/*"
       ]
     }
   },
