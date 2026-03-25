@@ -7,10 +7,10 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import CategoryInput from '../components/CategoryInput';
-import { useGame } from '../context/GameContext';
-import { useValidation } from '../hooks/useValidation';
-import { BorderRadius, Colors, Spacing, Typography } from '../theme';
+import CategoryInput from '@/src/components/CategoryInput';
+import { useGame } from '@/src/context/GameContext';
+import { useValidation } from '@/src/hooks/useValidation';
+import { BorderRadius, Colors, Spacing, Typography } from '@/src/theme';
 
 const GameplayScreen: React.FC = () => {
   const { state, setAnswer, stopBus } = useGame();

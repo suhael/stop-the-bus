@@ -7,9 +7,9 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useGame } from '../context/GameContext';
-import { BorderRadius, Colors, Spacing, Typography } from '../theme';
-import { getPodiumEmoji } from '../utils/format';
+import { useGame } from '@/src/context/GameContext';
+import { BorderRadius, Colors, Spacing, Typography } from '@/src/theme';
+import { getPodiumEmoji } from '@/src/utils/format';
 
 const GameOverScreen: React.FC = () => {
   const { state, resetGame } = useGame();

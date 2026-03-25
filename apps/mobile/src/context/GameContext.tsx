@@ -7,7 +7,7 @@ import React, {
   useRef,
 } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
-import { connectSocket, getSocket } from '../api/socket';
+import { connectSocket, getSocket } from '@/src/api/socket';
 import {
   generateUserId,
   getNickname,
@@ -16,7 +16,7 @@ import {
   setLastRoomCode,
   setNickname as persistNickname,
   setUserId,
-} from '../utils/storage';
+} from '@/src/utils/storage';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

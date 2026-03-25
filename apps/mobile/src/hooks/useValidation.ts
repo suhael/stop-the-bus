@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { isValidWord } from '../db/dictionary';
+import { isValidWord } from '@/src/db/dictionary';
 
 interface ValidationState {
   [category: string]: 'idle' | 'valid' | 'invalid' | 'checking';

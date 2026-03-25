@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
-import { BorderRadius, Colors, Typography } from '../theme';
+import { BorderRadius, Colors, Typography } from '@/src/theme';
 
 interface BusTimerProps {
   seconds: number;

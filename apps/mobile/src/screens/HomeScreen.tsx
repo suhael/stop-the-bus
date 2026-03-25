@@ -10,8 +10,8 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useGame } from '../context/GameContext';
-import { BorderRadius, Colors, Spacing, Typography } from '../theme';
+import { useGame } from '@/src/context/GameContext';
+import { BorderRadius, Colors, Spacing, Typography } from '@/src/theme';
 
 const HomeScreen: React.FC = () => {
   const { state, createRoom, joinRoom, setNicknameAndProceed } = useGame();

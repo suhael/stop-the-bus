@@ -1,5 +1,5 @@
 import { io, Socket } from 'socket.io-client';
-import { ENV } from '../config/env';
+import { ENV } from '@/src/config/env';
 
 // ENV is guaranteed non-null here — _layout.tsx gates the app on ENV_ERRORS
 // before any screen (and therefore any socket usage) can be reached.

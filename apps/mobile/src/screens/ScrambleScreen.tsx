@@ -1,10 +1,10 @@
 import React, { useEffect, useRef } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import BusTimer from '../components/BusTimer';
-import { useGame } from '../context/GameContext';
-import { useCountdown } from '../hooks/useGameLoop';
-import { Colors, Spacing, Typography } from '../theme';
+import BusTimer from '@/src/components/BusTimer';
+import { useGame } from '@/src/context/GameContext';
+import { useCountdown } from '@/src/hooks/useGameLoop';
+import { Colors, Spacing, Typography } from '@/src/theme';
 
 const ScrambleScreen: React.FC = () => {
   const { state, submitWords } = useGame();

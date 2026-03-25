@@ -6,12 +6,12 @@ import * as SplashScreen from "expo-splash-screen";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
-import { GameProvider } from "../src/context/GameContext";
-import { ENV, ENV_ERRORS } from "../src/config/env";
-import EnvErrorScreen from "../src/screens/EnvErrorScreen";
-import DatabaseErrorScreen from "../src/screens/DatabaseErrorScreen";
-import { Colors } from "../src/theme";
-import { initDatabase } from "../src/db/dictionary";
+import { GameProvider } from "@/src/context/GameContext";
+import { ENV, ENV_ERRORS } from "@/src/config/env";
+import EnvErrorScreen from "@/src/screens/EnvErrorScreen";
+import DatabaseErrorScreen from "@/src/screens/DatabaseErrorScreen";
+import { Colors } from "@/src/theme";
+import { initDatabase } from "@/src/db/dictionary";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();

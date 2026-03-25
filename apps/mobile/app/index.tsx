@@ -1,13 +1,13 @@
 import { ActivityIndicator, StyleSheet, View } from "react-native";
-import { useGame } from "../src/context/GameContext";
-import { Colors } from "../src/theme";
-import NicknameScreen from "../src/screens/NicknameScreen";
-import HomeScreen from "../src/screens/HomeScreen";
-import LobbyScreen from "../src/screens/LobbyScreen";
-import GameplayScreen from "../src/screens/GameplayScreen";
-import ScrambleScreen from "../src/screens/ScrambleScreen";
-import ResultsScreen from "../src/screens/ResultsScreen";
-import GameOverScreen from "../src/screens/GameOverScreen";
+import { useGame } from "@/src/context/GameContext";
+import { Colors } from "@/src/theme";
+import NicknameScreen from "@/src/screens/NicknameScreen";
+import HomeScreen from "@/src/screens/HomeScreen";
+import LobbyScreen from "@/src/screens/LobbyScreen";
+import GameplayScreen from "@/src/screens/GameplayScreen";
+import ScrambleScreen from "@/src/screens/ScrambleScreen";
+import ResultsScreen from "@/src/screens/ResultsScreen";
+import GameOverScreen from "@/src/screens/GameOverScreen";
 
 export default function Index() {
   const { state } = useGame();

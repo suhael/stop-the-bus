@@ -1,11 +1,11 @@
 import React, { useEffect, useRef } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import BusTimer from '../components/BusTimer';
-import { useGame } from '../context/GameContext';
-import { useCountdown } from '../hooks/useGameLoop';
-import { BorderRadius, Colors, Spacing, Typography } from '../theme';
-import { getScoreStyle } from '../utils/format';
+import BusTimer from '@/src/components/BusTimer';
+import { useGame } from '@/src/context/GameContext';
+import { useCountdown } from '@/src/hooks/useGameLoop';
+import { BorderRadius, Colors, Spacing, Typography } from '@/src/theme';
+import { getScoreStyle } from '@/src/utils/format';
 
 const ResultsScreen: React.FC = () => {
   const { state, startGame } = useGame();

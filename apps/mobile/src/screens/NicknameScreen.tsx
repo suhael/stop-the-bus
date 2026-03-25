@@ -9,9 +9,9 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useGame } from '../context/GameContext';
-import { BorderRadius, Colors, Spacing, Typography } from '../theme';
-import { sanitizeNickname } from '../utils/format';
+import { useGame } from '@/src/context/GameContext';
+import { BorderRadius, Colors, Spacing, Typography } from '@/src/theme';
+import { sanitizeNickname } from '@/src/utils/format';
 
 const NicknameScreen: React.FC = () => {
   const { setNicknameAndProceed } = useGame();

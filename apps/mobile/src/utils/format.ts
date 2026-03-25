@@ -1,4 +1,4 @@
-import { Colors } from '../theme';
+import { Colors } from '@/src/theme';
 
 export const formatRoomCode = (code: string): string => {
   return code.toUpperCase().trim();

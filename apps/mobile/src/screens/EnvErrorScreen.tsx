@@ -2,7 +2,7 @@ import React from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { ZodIssue } from 'zod';
-import { Colors, Spacing, Typography } from '../theme';
+import { Colors, Spacing, Typography } from '@/src/theme';
 
 interface Props {
   errors: ZodIssue[];

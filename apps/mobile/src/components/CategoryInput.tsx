@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
-import { BorderRadius, Colors, Spacing, Typography } from '../theme';
+import { BorderRadius, Colors, Spacing, Typography } from '@/src/theme';
 
 type ValidationStatus = 'idle' | 'valid' | 'invalid' | 'checking';
 
