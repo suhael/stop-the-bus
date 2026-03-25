@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { isValidWord, initDictionary } from '../db/dictionary';
+import { useCallback, useRef, useState } from 'react';
+import { isValidWord } from '../db/dictionary';
 
 interface ValidationState {
   [category: string]: 'idle' | 'valid' | 'invalid' | 'checking';
@@ -14,10 +14,9 @@ export const useValidation = (letter: string) => {
   const [validationState, setValidationState] = useState<ValidationState>({});
   const activeCheckRef = useRef<Record<string, number>>({});
 
-  // Initialise the dictionary in the background (no-op if already loaded)
-  useEffect(() => {
-    initDictionary();
-  }, []);
+  // No need to initialise the DB here — _layout.tsx guarantees initDatabase()
+  // completes (and the app gates behind an error screen if it fails) before
+  // any screen — and therefore this hook — can ever be mounted.
 
   const validate = useCallback(
     async (category: string, word: string) => {

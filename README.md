@@ -19,3 +19,39 @@ ROUND_RESULTS: (data:cd { leaderboard: any, nextRoundReady: boolean }) => void;
 }
 
 we can import these exact interfaces into the mobile app. It will make building the UI infinitely faster because your IDE will autocomplete the expected payloads!
+
+C. The OS Backgrounding Disconnect (GameContext.tsx)
+Mobile operating systems are aggressive. If a user swipes out of your app to reply to a text, iOS/Android will often instantly sever the WebSocket connection to save battery.
+
+The Risk: When they return 3 seconds later, the socket connects with a new socket ID, but your frontend doesn't automatically tell the server "I'm back!"
+
+The Fix: Use React Native's AppState API to detect when the app returns to the active state. When it does, check if the socket is disconnected and immediately emit your IDENTIFY or RECONNECT event using the userId saved in AsyncStorage. This perfectly hooks into the 5-second Grace Period you built on the backend!
+
+🎨 2. UX & Architecture Improvements
+A. The "Keyboard Covering the Stop Button" Problem
+During the gameplay phase, players are furiously typing words into 5 separate text inputs.
+
+The UX Flaw: When the virtual keyboard pops up, it will likely cover the lower input fields and the crucial "Stop the Bus" button.
+
+The Fix: Wrap your GameplayScreen in a KeyboardAvoidingView and a ScrollView.
+
+TypeScript
+<KeyboardAvoidingView
+behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+style={{ flex: 1 }}
+
+>   <ScrollView keyboardShouldPersistTaps="handled">
+
+     {/* Category Inputs & Stop Button Here */}
+
+  </ScrollView>
+</KeyboardAvoidingView>
+Note: keyboardShouldPersistTaps="handled" ensures that if they tap the "Stop" button while the keyboard is open, it registers the tap instantly instead of just dismissing the keyboard.
+
+B. Case-Insensitive Local SQLite Validation
+Just like we fixed on the backend, make sure your mobile isValidWord query doesn't punish users for capitalization.
+
+The Query: Ensure your local check uses SELECT 1 FROM dictionary WHERE category = ? AND LOWER(word) = LOWER(?) LIMIT 1; so "apple" and "Apple" both turn the box green.
+
+C. Debounce the "On Blur"
+If a user types fast and constantly clicks between boxes, you might spam your local SQLite DB. It's fast, but wrapping your local validation call in a tiny 150ms debounce function (or just ensuring it strictly only fires on the onBlur event of the TextInput) will save UI thread performance.

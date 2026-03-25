@@ -1,3 +1,4 @@
+// apps/mobile/src/context/GameContext.tsx
 import React, {
   createContext,
   useCallback,
@@ -6,11 +7,13 @@ import React, {
   useReducer,
   useRef,
 } from 'react';
+import { AppState, AppStateStatus } from 'react-native';
 import { connectSocket, getSocket } from '../api/socket';
 import {
   generateUserId,
   getNickname,
   getUserId,
+  getLastRoomCode,
   setLastRoomCode,
   setNickname as persistNickname,
   setUserId,
@@ -61,57 +64,13 @@ interface GameState {
   round: number;
   letter: string;
   answers: Record<string, string>;
-  stopClickedBy: string;
-  scrambleTimeRemaining: number;
-  roundResult: RoundResult | null;
-  nextRound: number;
-  gameOver: GameOverData | null;
   error: string | null;
-  isConnected: boolean;
-  pendingJoin: boolean;
+  roundResult: RoundResult | null;
+  gameOverData: GameOverData | null;
+  scrambleTimeRemaining: number;
 }
 
-// ─── Actions ──────────────────────────────────────────────────────────────────
-
-type Action =
-  | { type: 'SET_SCREEN'; payload: Screen }
-  | { type: 'SET_USER'; payload: { userId: string; nickname: string } }
-  | {
-      type: 'ROOM_CREATED';
-      payload: { roomCode: string; roomId: string; categories: string[] };
-    }
-  | {
-      type: 'JOIN_ROOM_PENDING';
-      payload: { roomCode: string };
-    }
-  | {
-      type: 'PASSENGER_JOINED';
-      payload: {
-        playerId: string;
-        nickname: string;
-        isDriver: boolean;
-        categories: string[];
-        selfUserId: string;
-      };
-    }
-  | { type: 'HOST_MIGRATED'; payload: { newHostId: string } }
-  | {
-      type: 'ROUND_START';
-      payload: { letter: string; round: number; categories: string[] };
-    }
-  | {
-      type: 'START_SCRAMBLE';
-      payload: { timeRemaining: number; stopClickedBy: string };
-    }
-  | { type: 'ROUND_RESULTS'; payload: RoundResult }
-  | { type: 'NEXT_ROUND_READY'; payload: { nextRound: number } }
-  | { type: 'GAME_OVER'; payload: GameOverData }
-  | { type: 'SET_ANSWER'; payload: { category: string; word: string } }
-  | { type: 'SET_ERROR'; payload: string | null }
-  | { type: 'SET_CONNECTED'; payload: boolean }
-  | { type: 'RESET_GAME' };
-
-// ─── Initial State ─────────────────────────────────────────────────────────────
+// ─── Initial State & Reducer ──────────────────────────────────────────────────
 
 const initialState: GameState = {
   screen: 'LOADING',
@@ -121,144 +80,124 @@ const initialState: GameState = {
   roomId: '',
   players: [],
   categories: [],
-  round: 0,
+  round: 1,
   letter: '',
   answers: {},
-  stopClickedBy: '',
-  scrambleTimeRemaining: 3,
-  roundResult: null,
-  nextRound: 1,
-  gameOver: null,
   error: null,
-  isConnected: false,
-  pendingJoin: false,
+  roundResult: null,
+  gameOverData: null,
+  scrambleTimeRemaining: 0,
 };
 
-// ─── Reducer ──────────────────────────────────────────────────────────────────
+type GameAction =
+  | { type: 'INITIALIZE'; payload: { userId: string; nickname: string; screen: Screen } }
+  | { type: 'SET_NICKNAME'; payload: string }
+  | { type: 'CREATE_ROOM_PENDING' }
+  | { type: 'JOIN_ROOM_PENDING'; payload: { roomCode: string } }
+  | {
+      type: 'ROOM_JOINED';
+      payload: { roomCode: string; roomId: string; players: Player[]; categories: string[] };
+    }
+  | { type: 'PASSENGER_JOINED'; payload: Player & { categories?: string[] } }
+  | { type: 'PASSENGER_LEFT'; payload: { playerId: string; newHostId?: string } }
+  | { type: 'GAME_STARTED'; payload: { round: number; letter: string } }
+  | { type: 'SCRAMBLE_STARTED'; payload: { duration: number } }
+  | { type: 'SCRAMBLE_TICK'; payload: number }
+  | { type: 'ROUND_RESULTS'; payload: RoundResult }
+  | { type: 'NEXT_ROUND_READY'; payload: { round: number; letter: string } }
+  | { type: 'GAME_OVER'; payload: GameOverData }
+  | { type: 'SET_ANSWER'; payload: { category: string; word: string } }
+  | { type: 'SET_ERROR'; payload: string | null }
+  | { type: 'RESET_GAME' };
 
-const IN_GAME_SCREENS: Screen[] = ['GAMEPLAY', 'SCRAMBLE', 'RESULTS', 'GAME_OVER'];
-
-function gameReducer(state: GameState, action: Action): GameState {
+function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
-    case 'SET_SCREEN':
-      return { ...state, screen: action.payload };
-
-    case 'SET_USER':
+    case 'INITIALIZE':
       return {
         ...state,
         userId: action.payload.userId,
         nickname: action.payload.nickname,
+        screen: action.payload.screen,
       };
-
-    case 'ROOM_CREATED':
+    case 'SET_NICKNAME':
+      return { ...state, nickname: action.payload, screen: 'HOME' };
+    case 'CREATE_ROOM_PENDING':
+    case 'JOIN_ROOM_PENDING':
+      return { ...state, error: null };
+    case 'ROOM_JOINED':
       return {
         ...state,
         roomCode: action.payload.roomCode,
         roomId: action.payload.roomId,
-        categories: action.payload.categories.length
-          ? action.payload.categories
-          : state.categories,
-        players: [],
+        players: action.payload.players,
+        categories: action.payload.categories,
         screen: 'LOBBY',
         error: null,
-        pendingJoin: false,
       };
-
-    case 'JOIN_ROOM_PENDING':
-      return {
-        ...state,
-        roomCode: action.payload.roomCode,
-        pendingJoin: true,
-        error: null,
-      };
-
     case 'PASSENGER_JOINED': {
-      const { playerId, nickname, isDriver, categories, selfUserId } = action.payload;
-      const player: Player = { playerId, nickname, isDriver };
-
-      // Update players list
-      const existing = state.players.find((p) => p.playerId === playerId);
-      const updatedPlayers = existing
-        ? state.players.map((p) => (p.playerId === playerId ? player : p))
-        : [...state.players, player];
-
-      // Determine if we should navigate to lobby
-      const isSelf = playerId === selfUserId;
-      const notInGame = !IN_GAME_SCREENS.includes(state.screen);
-      const navigateToLobby = isSelf && notInGame;
-
+      const existing = state.players.findIndex((p) => p.playerId === action.payload.playerId);
+      let newPlayers = [...state.players];
+      if (existing >= 0) {
+        newPlayers[existing] = {
+          playerId: action.payload.playerId,
+          nickname: action.payload.nickname,
+          isDriver: action.payload.isDriver,
+        };
+      } else {
+        newPlayers.push({
+          playerId: action.payload.playerId,
+          nickname: action.payload.nickname,
+          isDriver: action.payload.isDriver,
+        });
+      }
       return {
         ...state,
-        players: updatedPlayers,
-        categories: categories?.length ? categories : state.categories,
-        pendingJoin: false,
-        screen: navigateToLobby ? 'LOBBY' : state.screen,
-        error: null,
+        players: newPlayers,
+        categories: action.payload.categories || state.categories,
       };
     }
-
-    case 'HOST_MIGRATED':
+    case 'PASSENGER_LEFT':
       return {
         ...state,
-        players: state.players.map((p) => ({
-          ...p,
-          isDriver: p.playerId === action.payload.newHostId,
-        })),
+        players: state.players
+          .filter((p) => p.playerId !== action.payload.playerId)
+          .map((p) =>
+            action.payload.newHostId && p.playerId === action.payload.newHostId
+              ? { ...p, isDriver: true }
+              : p
+          ),
       };
-
-    case 'ROUND_START':
-      return {
-        ...state,
-        letter: action.payload.letter,
-        round: action.payload.round,
-        categories: action.payload.categories,
-        answers: {},
-        screen: 'GAMEPLAY',
-        error: null,
-      };
-
-    case 'START_SCRAMBLE':
-      return {
-        ...state,
-        scrambleTimeRemaining: action.payload.timeRemaining,
-        stopClickedBy: action.payload.stopClickedBy,
-        screen: 'SCRAMBLE',
-      };
-
-    case 'ROUND_RESULTS':
-      return {
-        ...state,
-        roundResult: action.payload,
-        screen: 'RESULTS',
-      };
-
+    case 'GAME_STARTED':
     case 'NEXT_ROUND_READY':
-      return { ...state, nextRound: action.payload.nextRound };
-
+      return {
+        ...state,
+        round: action.payload.round,
+        letter: action.payload.letter,
+        answers: {}, // Clear answers for the new round
+        screen: 'GAMEPLAY',
+        roundResult: null,
+      };
+    case 'SCRAMBLE_STARTED':
+      return {
+        ...state,
+        screen: 'SCRAMBLE',
+        scrambleTimeRemaining: action.payload.duration,
+      };
+    case 'SCRAMBLE_TICK':
+      return { ...state, scrambleTimeRemaining: action.payload };
+    case 'ROUND_RESULTS':
+      return { ...state, screen: 'RESULTS', roundResult: action.payload };
     case 'GAME_OVER':
-      return { ...state, gameOver: action.payload, screen: 'GAME_OVER' };
-
+      return { ...state, screen: 'GAME_OVER', gameOverData: action.payload };
     case 'SET_ANSWER':
       return {
         ...state,
         answers: { ...state.answers, [action.payload.category]: action.payload.word },
       };
-
     case 'SET_ERROR':
       return { ...state, error: action.payload };
-
-    case 'SET_CONNECTED':
-      return { ...state, isConnected: action.payload };
-
     case 'RESET_GAME':
-      return {
-        ...initialState,
-        userId: state.userId,
-        nickname: state.nickname,
-        screen: 'HOME',
-        isConnected: state.isConnected,
-      };
-
+      return { ...initialState, userId: state.userId, nickname: state.nickname, screen: 'HOME' };
     default:
       return state;
   }
@@ -266,7 +205,7 @@ function gameReducer(state: GameState, action: Action): GameState {
 
 // ─── Context & Provider ───────────────────────────────────────────────────────
 
-interface GameContextValue {
+interface GameContextProps {
   state: GameState;
   createRoom: () => void;
   joinRoom: (roomCode: string) => void;
@@ -279,130 +218,159 @@ interface GameContextValue {
   resetGame: () => void;
 }
 
-const GameContext = createContext<GameContextValue | undefined>(undefined);
+const GameContext = createContext<GameContextProps | undefined>(undefined);
 
 export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(gameReducer, initialState);
-
-  // Always keep a ref to avoid stale closures in socket event handlers
   const stateRef = useRef(state);
-  stateRef.current = state;
+  const appState = useRef(AppState.currentState);
 
-  // ── Init: restore session from AsyncStorage ──────────────────────────────
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+
+  // 1. Initial Load from Storage
   useEffect(() => {
     const init = async () => {
-      let userId = await getUserId();
-      if (!userId) {
-        userId = generateUserId();
-        await setUserId(userId);
+      let storedUserId = await getUserId();
+      if (!storedUserId) {
+        storedUserId = generateUserId();
+        await setUserId(storedUserId);
       }
-      const savedNickname = await getNickname();
-      dispatch({ type: 'SET_USER', payload: { userId, nickname: savedNickname ?? '' } });
+      const storedNickname = await getNickname();
+
       dispatch({
-        type: 'SET_SCREEN',
-        payload: savedNickname ? 'HOME' : 'NICKNAME',
+        type: 'INITIALIZE',
+        payload: {
+          userId: storedUserId,
+          nickname: storedNickname || '',
+          screen: storedNickname ? 'HOME' : 'NICKNAME',
+        },
       });
+
+      // Connect socket globally
+      connectSocket();
     };
     init();
   }, []);
 
-  // ── Socket: connect and register all listeners ───────────────────────────
+  // 2. OS Backgrounding Auto-Reconnect Logic
   useEffect(() => {
-    const socket = connectSocket();
+    const subscription = AppState.addEventListener('change', async (nextAppState: AppStateStatus) => {
+      if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
+        console.log('[AppState] App returned to foreground. Checking socket...');
+        
+        const socket = getSocket();
+        
+        const cachedUserId = await getUserId();
+        const cachedNickname = await getNickname();
+        const cachedRoomCode = await getLastRoomCode();
+        const shouldRejoin =
+          cachedUserId && cachedNickname && cachedRoomCode && stateRef.current.screen !== 'HOME';
 
-    socket.on('connect', () => {
-      dispatch({ type: 'SET_CONNECTED', payload: true });
-    });
+        if (shouldRejoin) {
+          const doRejoin = () => {
+            console.log(`[AppState] Reclaiming spot in room ${cachedRoomCode}`);
+            socket.emit('JOIN_ROOM', {
+              roomCode: cachedRoomCode,
+              userId: cachedUserId,
+              nickname: cachedNickname,
+            });
+          };
 
-    socket.on('disconnect', () => {
-      dispatch({ type: 'SET_CONNECTED', payload: false });
-    });
-
-    socket.on(
-      'ROOM_CREATED',
-      (data: { roomCode: string; roomId: string; categories: string[] }) => {
-        setLastRoomCode(data.roomCode);
-        dispatch({ type: 'ROOM_CREATED', payload: data });
-      },
-    );
-
-    socket.on(
-      'PASSENGER_JOINED',
-      (data: {
-        playerId: string;
-        nickname: string;
-        isDriver: boolean;
-        categories: string[];
-      }) => {
-        dispatch({
-          type: 'PASSENGER_JOINED',
-          payload: { ...data, selfUserId: stateRef.current.userId },
-        });
-      },
-    );
-
-    socket.on('HOST_MIGRATED', (data: { newHostId: string }) => {
-      dispatch({ type: 'HOST_MIGRATED', payload: data });
-    });
-
-    socket.on(
-      'ROUND_START',
-      (data: { letter: string; round: number; categories: string[] }) => {
-        dispatch({ type: 'ROUND_START', payload: data });
-      },
-    );
-
-    socket.on(
-      'START_SCRAMBLE',
-      (data: { timeRemaining: number; stopClickedBy: string }) => {
-        dispatch({ type: 'START_SCRAMBLE', payload: data });
-      },
-    );
-
-    socket.on('ROUND_RESULTS', (data: RoundResult) => {
-      dispatch({ type: 'ROUND_RESULTS', payload: data });
-    });
-
-    socket.on('NEXT_ROUND_READY', (data: { nextRound: number }) => {
-      dispatch({ type: 'NEXT_ROUND_READY', payload: data });
-    });
-
-    socket.on('GAME_OVER', (data: GameOverData) => {
-      dispatch({ type: 'GAME_OVER', payload: data });
-    });
-
-    socket.on('ERROR', (data: { code: string; message: string }) => {
-      dispatch({ type: 'SET_ERROR', payload: data.message });
+          if (!socket.connected) {
+            // Socket was killed by OS — wait for handshake before emitting
+            console.log('[AppState] Socket dead. Reconnecting then re-joining...');
+            socket.once('connect', doRejoin);
+            socket.connect();
+          } else {
+            // Socket auto-reconnected while backgrounded but room membership is lost
+            console.log('[AppState] Socket alive but room lost. Re-joining...');
+            doRejoin();
+          }
+        }
+      }
+      appState.current = nextAppState;
     });
 
     return () => {
-      socket.off('connect');
-      socket.off('disconnect');
-      socket.off('ROOM_CREATED');
-      socket.off('PASSENGER_JOINED');
-      socket.off('HOST_MIGRATED');
-      socket.off('ROUND_START');
-      socket.off('START_SCRAMBLE');
-      socket.off('ROUND_RESULTS');
-      socket.off('NEXT_ROUND_READY');
-      socket.off('GAME_OVER');
-      socket.off('ERROR');
+      subscription.remove();
     };
   }, []);
 
-  // ── Actions ──────────────────────────────────────────────────────────────
+  // 3. Socket Listeners
+  useEffect(() => {
+    const socket = getSocket();
 
-  const setNicknameAndProceed = useCallback(async (nickname: string) => {
-    await persistNickname(nickname);
-    dispatch({
-      type: 'SET_USER',
-      payload: { userId: stateRef.current.userId, nickname },
-    });
-    dispatch({ type: 'SET_SCREEN', payload: 'HOME' });
+    const onRoomCreated = async (data: any) => {
+      await setLastRoomCode(data.roomCode);
+      dispatch({
+        type: 'ROOM_JOINED',
+        payload: {
+          roomCode: data.roomCode,
+          roomId: data.roomId,
+          players: data.players,
+          categories: data.categories,
+        },
+      });
+    };
+
+    const onRoomJoined = async (data: any) => {
+      await setLastRoomCode(data.roomCode);
+      dispatch({
+        type: 'ROOM_JOINED',
+        payload: {
+          roomCode: data.roomCode,
+          roomId: data.roomId,
+          players: data.players,
+          categories: data.categories,
+        },
+      });
+    };
+
+    const onPassengerJoined = (data: any) => dispatch({ type: 'PASSENGER_JOINED', payload: data });
+    const onPassengerLeft = (data: any) => dispatch({ type: 'PASSENGER_LEFT', payload: data });
+    const onGameStarted = (data: any) => dispatch({ type: 'GAME_STARTED', payload: data });
+    const onScrambleStarted = (data: any) => dispatch({ type: 'SCRAMBLE_STARTED', payload: data });
+    const onRoundResults = (data: any) => dispatch({ type: 'ROUND_RESULTS', payload: data });
+    const onNextRoundReady = (data: any) => dispatch({ type: 'NEXT_ROUND_READY', payload: data });
+    const onGameOver = (data: any) => dispatch({ type: 'GAME_OVER', payload: data });
+    const onError = (data: any) => dispatch({ type: 'SET_ERROR', payload: data.message });
+
+    socket.on('ROOM_CREATED', onRoomCreated);
+    socket.on('ROOM_JOINED', onRoomJoined);
+    socket.on('PASSENGER_JOINED', onPassengerJoined);
+    socket.on('PASSENGER_LEFT', onPassengerLeft);
+    socket.on('GAME_STARTED', onGameStarted);
+    socket.on('SCRAMBLE_STARTED', onScrambleStarted);
+    socket.on('ROUND_RESULTS', onRoundResults);
+    socket.on('NEXT_ROUND_READY', onNextRoundReady);
+    socket.on('GAME_OVER', onGameOver);
+    socket.on('ERROR', onError);
+
+    return () => {
+      socket.off('ROOM_CREATED', onRoomCreated);
+      socket.off('ROOM_JOINED', onRoomJoined);
+      socket.off('PASSENGER_JOINED', onPassengerJoined);
+      socket.off('PASSENGER_LEFT', onPassengerLeft);
+      socket.off('GAME_STARTED', onGameStarted);
+      socket.off('SCRAMBLE_STARTED', onScrambleStarted);
+      socket.off('ROUND_RESULTS', onRoundResults);
+      socket.off('NEXT_ROUND_READY', onNextRoundReady);
+      socket.off('GAME_OVER', onGameOver);
+      socket.off('ERROR', onError);
+    };
+  }, []);
+
+  // ─── Actions ────────────────────────────────────────────────────────────────
+
+  const setNicknameAndProceed = useCallback(async (name: string) => {
+    await persistNickname(name);
+    dispatch({ type: 'SET_NICKNAME', payload: name });
   }, []);
 
   const createRoom = useCallback(() => {
-    dispatch({ type: 'SET_ERROR', payload: null });
+    dispatch({ type: 'CREATE_ROOM_PENDING' });
     getSocket().emit('CREATE_ROOM', {
       userId: stateRef.current.userId,
       nickname: stateRef.current.nickname,
@@ -463,8 +431,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
 };
 
-export const useGame = (): GameContextValue => {
-  const ctx = useContext(GameContext);
-  if (!ctx) throw new Error('useGame must be used within a GameProvider');
-  return ctx;
+export const useGame = (): GameContextProps => {
+  const context = useContext(GameContext);
+  if (!context) {
+    throw new Error('useGame must be used within a GameProvider');
+  }
+  return context;
 };

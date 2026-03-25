@@ -1,9 +1,16 @@
 import { io, Socket } from 'socket.io-client';
+import { ENV } from '../config/env';
 
-// Use EXPO_PUBLIC_SERVER_URL env var (set in .env in apps/mobile/)
-// Falls back to localhost for Expo web simulator; for a physical device use your machine's LAN IP
-const SERVER_URL =
-  process.env.EXPO_PUBLIC_SERVER_URL ?? 'http://localhost:3000';
+// ENV is guaranteed non-null here — _layout.tsx gates the app on ENV_ERRORS
+// before any screen (and therefore any socket usage) can be reached.
+if (!ENV) {
+  throw new Error(
+    'Socket initialised before environment validation passed. ' +
+    'Check ENV_ERRORS in apps/mobile/src/config/env.ts.',
+  );
+}
+
+const SERVER_URL = ENV.EXPO_PUBLIC_SERVER_URL;
 
 let socket: Socket | null = null;
 

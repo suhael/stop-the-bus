@@ -1,88 +1,56 @@
-/**
- * SQLite Dictionary Module
- *
- * Copies the bundled `words.db` asset into the device's default SQLite
- * directory on first launch, then exposes `isValidWord()` for instant on-blur
- * input validation with zero network latency.
- *
- * Uses the expo-file-system v19 OOP API (File / Directory / Paths) and
- * expo-sqlite v16 (`openDatabaseAsync` with optional directory parameter).
- *
- * Fails open — if the DB is unavailable all words are treated as valid so
- * gameplay is never blocked.
- *
- * Schema (mirrors the server's game.db):
- *   CREATE TABLE dictionary (letter TEXT, category TEXT, word TEXT);
- *   CREATE INDEX idx ON dictionary(letter, category, word);
- *
- * To build words.db, run the server seed script and copy the resulting
- * game.db to apps/mobile/assets/words.db.
+import * as FileSystem from 'expo-file-system/legacy';
+import { Asset } from 'expo-asset';
+import * as SQLite from 'expo-sqlite';
+
+const DB_NAME = 'game.db';
+let db: SQLite.SQLiteDatabase | null = null;
+
+/** * Copies the bundled asset into the SQLite default directory (runs once).
+ * This must be awaited in the RootLayout before hiding the Splash Screen.
  */
+export const initDatabase = async (): Promise<void> => {
+  if (db) return; // Already initialized
 
-import { openDatabaseAsync, defaultDatabaseDirectory, type SQLiteDatabase } from 'expo-sqlite';
-import { Directory, File, Paths } from 'expo-file-system';
+  const dbDir = `${FileSystem.documentDirectory}SQLite`;
+  const dbPath = `${dbDir}/${DB_NAME}`;
 
-const DB_NAME = 'words.db';
-
-let db: SQLiteDatabase | null = null;
-let initPromise: Promise<void> | null = null;
-
-/** Copy the bundled asset into the SQLite default directory (runs once). */
-const ensureDatabase = async (): Promise<void> => {
-  if (db) return;
-
-  // The asset may not exist yet during early development — fail gracefully.
-  let dbAssetModule: number | null = null;
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    dbAssetModule = require('../../assets/words.db') as number;
-  } catch {
-    console.warn('[Dictionary] words.db asset not found — validation disabled.');
-    return;
+  // 1. Check if the SQLite directory exists, if not, create it
+  const dirInfo = await FileSystem.getInfoAsync(dbDir);
+  if (!dirInfo.exists) {
+    await FileSystem.makeDirectoryAsync(dbDir, { intermediates: true });
   }
 
-  try {
-    const { Asset } = await import('expo-asset');
-
-    // Ensure the default SQLite directory exists
-    const sqliteDir = new Directory(defaultDatabaseDirectory);
-    if (!sqliteDir.exists) {
-      sqliteDir.create();
+  // 2. Check if the database already exists on the device
+  const dbInfo = await FileSystem.getInfoAsync(dbPath);
+  
+  if (!dbInfo.exists) {
+    console.log('[Dictionary] Database not found. Copying game.db from assets...');
+    
+    // 3. Load the asset from the Expo bundler
+    const [{ localUri }] = await Asset.loadAsync(require('../../assets/game.db'));
+    
+    if (!localUri) {
+      throw new Error('Failed to load game.db asset from bundle.');
     }
 
-    // Only copy the asset if the DB file isn't already in place
-    const destFile = new File(Paths.document, 'SQLite', DB_NAME);
-    if (!destFile.exists) {
-      const asset = await Asset.fromModule(dbAssetModule).downloadAsync();
-      if (asset.localUri) {
-        const srcFile = new File(asset.localUri);
-        srcFile.copy(sqliteDir);
-      }
-    }
-
-    // Open without passing a directory — expo-sqlite v16 defaults to
-    // defaultDatabaseDirectory which is the same folder we copied into.
-    db = await openDatabaseAsync(DB_NAME);
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.warn('[Dictionary] Failed to initialise SQLite dictionary:', msg);
-  }
-};
-
-/** Initialise the DB once (lazy, cached). */
-export const initDictionary = (): Promise<void> => {
-  if (!initPromise) {
-    initPromise = ensureDatabase().catch((err) => {
-      console.warn('[Dictionary] Could not load words.db:', err?.message);
-      initPromise = null; // allow retry
+    // 4. Copy it to the permanent document directory
+    await FileSystem.copyAsync({
+      from: localUri,
+      to: dbPath,
     });
+    
+    console.log('[Dictionary] Database successfully copied!');
+  } else {
+    console.log('[Dictionary] Database already exists on device.');
   }
-  return initPromise;
+
+  // 5. Open the database connection
+  db = await SQLite.openDatabaseAsync(DB_NAME);
 };
 
 /**
  * Returns `true` if `word` exists in the dictionary for `category` / `letter`.
- * Returns `true` (pass-through) when the DB is not available.
+ * Returns `true` (fail open) when the DB is not available, avoiding blocking the user.
  */
 export const isValidWord = async (
   category: string,
@@ -90,7 +58,11 @@ export const isValidWord = async (
   word: string,
 ): Promise<boolean> => {
   if (!word.trim()) return false;
-  if (!db) return true; // fail open
+  
+  if (!db) {
+    console.warn('[Dictionary] Database not initialized, failing open.');
+    return true; 
+  }
 
   try {
     const result = await db.getFirstAsync<{ found: number }>(
@@ -103,6 +75,3 @@ export const isValidWord = async (
     return true; // fail open
   }
 };
-
-/** Returns `true` if the dictionary DB has been successfully loaded. */
-export const isDictionaryReady = (): boolean => !!db;
