@@ -2,15 +2,53 @@
   "name": "@stop-the-bus/shared",
   "version": "1.0.0",
   "description": "Shared utilities and constants for Stop the Bus",
-  "main": "index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.8.0",
+    "dotenv": "^16.0.0",
+    "redis": "^4.7.1"
+  },
   "exports": {
-    ".": "./index.ts",
-    "./validators": "./validators.ts",
-    "./errors": "./errors.ts",
-    "./constants": "./constants.ts",
-    "./logic/scoring": "./logic/scoring.ts",
-    "./logic/dictionary": "./logic/dictionary.ts",
-    "./redis": "./redis/index.ts",
-    "./redis/*": "./redis/*.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./validators": {
+      "types": "./dist/validators.d.ts",
+      "default": "./dist/validators.js"
+    },
+    "./errors": {
+      "types": "./dist/errors.d.ts",
+      "default": "./dist/errors.js"
+    },
+    "./constants": {
+      "types": "./dist/constants.d.ts",
+      "default": "./dist/constants.js"
+    },
+    "./logic/scoring": {
+      "types": "./dist/logic/scoring.d.ts",
+      "default": "./dist/logic/scoring.js"
+    },
+    "./logic/dictionary": {
+      "types": "./dist/logic/dictionary.d.ts",
+      "default": "./dist/logic/dictionary.js"
+    },
+    "./redis": {
+      "types": "./dist/redis/index.d.ts",
+      "default": "./dist/redis/index.js"
+    },
+    "./redis/*": {
+      "types": "./dist/redis/*.d.ts",
+      "default": "./dist/redis/*.js"
+    },
+    "./package.json": "./package.json"
   }
 }

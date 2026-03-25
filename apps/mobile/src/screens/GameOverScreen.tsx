@@ -13,11 +13,11 @@ import { getPodiumEmoji } from '@/src/utils/format';
 
 const GameOverScreen: React.FC = () => {
   const { state, resetGame } = useGame();
-  const { gameOver, players, userId } = state;
+  const { gameOverData, players, userId } = state;
 
-  if (!gameOver) return null;
+  if (!gameOverData) return null;
 
-  const { podium, playerAnswers, scores } = gameOver;
+  const { podium, playerAnswers, scores } = gameOverData;
   const winner = podium[0];
   const isWinner = winner?.userId === userId;
 

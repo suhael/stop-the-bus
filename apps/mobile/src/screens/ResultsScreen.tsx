@@ -90,12 +90,7 @@ const ResultsScreen: React.FC = () => {
                   <Text style={styles.playerRoundScore}>+{roundScore} pts</Text>
                 </View>
                 {Object.entries(catAnswers).map(([cat, word]) => {
-                  // Determine score per word: simplistic check — if total is 10 per
-                  // category then unique, 5 = shared, 0 = empty/invalid.
-                  // The server sends total round score, not per-word scores directly.
-                  // We do basic display without per-word breakdown.
                   const empty = !word.trim();
-                  const style = getScoreStyle(empty ? 0 : 5);
                   return (
                     <View key={cat} style={styles.wordRow}>
                       <Text style={styles.wordCat}>{cat}</Text>

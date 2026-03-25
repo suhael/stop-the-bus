@@ -3,10 +3,12 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "scripts": {
-    "start": "expo start",
+    "start": "npm run copy-db && expo start",
     "reset-project": "node ./scripts/reset-project.js",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "npm run copy-db && expo run:android",
+    "ios": "npm run copy-db && expo run:ios",
+    "copy-db": "mkdir -p assets && cp ../../data/game.db ./assets/game.db",
+    "build": "npm run copy-db && expo export",
     "web": "expo start --web",
     "lint": "expo lint"
   },

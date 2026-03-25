@@ -56,17 +56,21 @@ interface GameState {
   screen: Screen;
   userId: string;
   nickname: string;
+  isConnected: boolean;
+  pendingJoin: boolean;
   roomCode: string;
   roomId: string;
   players: Player[];
   categories: string[];
   round: number;
+  nextRound: number | null;
   letter: string;
   answers: Record<string, string>;
   error: string | null;
   roundResult: RoundResult | null;
   gameOverData: GameOverData | null;
   scrambleTimeRemaining: number;
+  stopClickedBy: string | null;
 }
 
 // ─── Initial State & Reducer ──────────────────────────────────────────────────
@@ -75,21 +79,26 @@ const initialState: GameState = {
   screen: 'LOADING',
   userId: '',
   nickname: '',
+  isConnected: false,
+  pendingJoin: false,
   roomCode: '',
   roomId: '',
   players: [],
   categories: [],
   round: 1,
+  nextRound: null,
   letter: '',
   answers: {},
   error: null,
   roundResult: null,
   gameOverData: null,
   scrambleTimeRemaining: 0,
+  stopClickedBy: null,
 };
 
 type GameAction =
   | { type: 'INITIALIZE'; payload: { userId: string; nickname: string; screen: Screen } }
+  | { type: 'SET_CONNECTION'; payload: boolean }
   | { type: 'SET_NICKNAME'; payload: string }
   | { type: 'CREATE_ROOM_PENDING' }
   | { type: 'JOIN_ROOM_PENDING'; payload: { roomCode: string } }
@@ -100,10 +109,10 @@ type GameAction =
   | { type: 'PASSENGER_JOINED'; payload: Player & { categories?: string[] } }
   | { type: 'PASSENGER_LEFT'; payload: { playerId: string; newHostId?: string } }
   | { type: 'GAME_STARTED'; payload: { round: number; letter: string } }
-  | { type: 'SCRAMBLE_STARTED'; payload: { duration: number } }
+  | { type: 'SCRAMBLE_STARTED'; payload: { duration: number; stopClickedBy?: string | null } }
   | { type: 'SCRAMBLE_TICK'; payload: number }
   | { type: 'ROUND_RESULTS'; payload: RoundResult }
-  | { type: 'NEXT_ROUND_READY'; payload: { round: number; letter: string } }
+  | { type: 'NEXT_ROUND_READY'; payload: { nextRound: number } }
   | { type: 'GAME_OVER'; payload: GameOverData }
   | { type: 'SET_ANSWER'; payload: { category: string; word: string } }
   | { type: 'SET_ERROR'; payload: string | null }
@@ -118,11 +127,14 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         nickname: action.payload.nickname,
         screen: action.payload.screen,
       };
+    case 'SET_CONNECTION':
+      return { ...state, isConnected: action.payload };
     case 'SET_NICKNAME':
       return { ...state, nickname: action.payload, screen: 'HOME' };
     case 'CREATE_ROOM_PENDING':
+      return { ...state, pendingJoin: true, error: null };
     case 'JOIN_ROOM_PENDING':
-      return { ...state, error: null };
+      return { ...state, pendingJoin: true, error: null };
     case 'ROOM_JOINED':
       return {
         ...state,
@@ -131,6 +143,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         players: action.payload.players,
         categories: action.payload.categories,
         screen: 'LOBBY',
+        pendingJoin: false,
+        nextRound: null,
         error: null,
       };
     case 'PASSENGER_JOINED': {
@@ -167,7 +181,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           ),
       };
     case 'GAME_STARTED':
-    case 'NEXT_ROUND_READY':
       return {
         ...state,
         round: action.payload.round,
@@ -175,28 +188,40 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         answers: {}, // Clear answers for the new round
         screen: 'GAMEPLAY',
         roundResult: null,
+        gameOverData: null,
+        nextRound: null,
+        stopClickedBy: null,
       };
     case 'SCRAMBLE_STARTED':
       return {
         ...state,
         screen: 'SCRAMBLE',
         scrambleTimeRemaining: action.payload.duration,
+        stopClickedBy: action.payload.stopClickedBy ?? state.stopClickedBy,
       };
     case 'SCRAMBLE_TICK':
       return { ...state, scrambleTimeRemaining: action.payload };
     case 'ROUND_RESULTS':
-      return { ...state, screen: 'RESULTS', roundResult: action.payload };
+      return { ...state, screen: 'RESULTS', roundResult: action.payload, stopClickedBy: null };
+    case 'NEXT_ROUND_READY':
+      return { ...state, nextRound: action.payload.nextRound };
     case 'GAME_OVER':
-      return { ...state, screen: 'GAME_OVER', gameOverData: action.payload };
+      return { ...state, screen: 'GAME_OVER', gameOverData: action.payload, nextRound: null };
     case 'SET_ANSWER':
       return {
         ...state,
         answers: { ...state.answers, [action.payload.category]: action.payload.word },
       };
     case 'SET_ERROR':
-      return { ...state, error: action.payload };
+      return { ...state, error: action.payload, pendingJoin: false };
     case 'RESET_GAME':
-      return { ...initialState, userId: state.userId, nickname: state.nickname, screen: 'HOME' };
+      return {
+        ...initialState,
+        userId: state.userId,
+        nickname: state.nickname,
+        isConnected: state.isConnected,
+        screen: 'HOME',
+      };
     default:
       return state;
   }
@@ -301,6 +326,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const socket = getSocket();
 
+    const onConnect = () => dispatch({ type: 'SET_CONNECTION', payload: true });
+    const onDisconnect = () => dispatch({ type: 'SET_CONNECTION', payload: false });
+
     const onRoomCreated = async (data: any) => {
       await setLastRoomCode(data.roomCode);
       dispatch({
@@ -308,7 +336,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         payload: {
           roomCode: data.roomCode,
           roomId: data.roomId,
-          players: data.players,
+          players: data.players ?? [],
           categories: data.categories,
         },
       });
@@ -342,27 +370,40 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         },
       });
       // Then immediately jump to the right in-game screen
-      if (data.status === 'SCRAMBLE') {
-        dispatch({ type: 'SCRAMBLE_STARTED', payload: { duration: 0 } });
-      }
       dispatch({ type: 'GAME_STARTED', payload: { round: data.round, letter: data.letter } });
+      if (data.status === 'SCRAMBLE') {
+        dispatch({
+          type: 'SCRAMBLE_STARTED',
+          payload: { duration: 0, stopClickedBy: data.stopClickedBy ?? null },
+        });
+      }
     };
 
     const onPassengerJoined = (data: any) => dispatch({ type: 'PASSENGER_JOINED', payload: data });
     const onPassengerLeft = (data: any) => dispatch({ type: 'PASSENGER_LEFT', payload: data });
     const onGameStarted = (data: any) => dispatch({ type: 'GAME_STARTED', payload: data });
-    const onScrambleStarted = (data: any) => dispatch({ type: 'SCRAMBLE_STARTED', payload: data });
+    const onScrambleStarted = (data: any) =>
+      dispatch({
+        type: 'SCRAMBLE_STARTED',
+        payload: {
+          duration: data.duration ?? data.timeRemaining ?? 0,
+          stopClickedBy: data.stopClickedBy ?? null,
+        },
+      });
     const onRoundResults = (data: any) => dispatch({ type: 'ROUND_RESULTS', payload: data });
     const onNextRoundReady = (data: any) => dispatch({ type: 'NEXT_ROUND_READY', payload: data });
     const onGameOver = (data: any) => dispatch({ type: 'GAME_OVER', payload: data });
     const onError = (data: any) => dispatch({ type: 'SET_ERROR', payload: data.message });
 
+    socket.on('connect', onConnect);
+    socket.on('disconnect', onDisconnect);
     socket.on('ROOM_CREATED', onRoomCreated);
     socket.on('ROOM_JOINED', onRoomJoined);
     socket.on('GAME_REJOINED', onGameRejoined);
     socket.on('PASSENGER_JOINED', onPassengerJoined);
     socket.on('PASSENGER_LEFT', onPassengerLeft);
     socket.on('GAME_STARTED', onGameStarted);
+    socket.on('START_SCRAMBLE', onScrambleStarted);
     socket.on('SCRAMBLE_STARTED', onScrambleStarted);
     socket.on('ROUND_RESULTS', onRoundResults);
     socket.on('NEXT_ROUND_READY', onNextRoundReady);
@@ -370,12 +411,15 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     socket.on('ERROR', onError);
 
     return () => {
+      socket.off('connect', onConnect);
+      socket.off('disconnect', onDisconnect);
       socket.off('ROOM_CREATED', onRoomCreated);
       socket.off('ROOM_JOINED', onRoomJoined);
       socket.off('GAME_REJOINED', onGameRejoined);
       socket.off('PASSENGER_JOINED', onPassengerJoined);
       socket.off('PASSENGER_LEFT', onPassengerLeft);
       socket.off('GAME_STARTED', onGameStarted);
+      socket.off('START_SCRAMBLE', onScrambleStarted);
       socket.off('SCRAMBLE_STARTED', onScrambleStarted);
       socket.off('ROUND_RESULTS', onRoundResults);
       socket.off('NEXT_ROUND_READY', onNextRoundReady);
