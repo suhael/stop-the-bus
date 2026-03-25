@@ -1,52 +1,76 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { isValidWord } from '../db/dictionary';
 
 interface ValidationState {
   [category: string]: 'idle' | 'valid' | 'invalid' | 'checking';
 }
 
+const DEBOUNCE_MS = 150;
+
 /**
  * Provides per-category word validation against the bundled SQLite dictionary.
  * Returns a `validate(category, word)` function to call on blur, plus a map of
  * validation states for styling input fields.
+ *
+ * Validation calls are debounced per-category (150 ms) so that rapid focus
+ * changes between inputs (e.g. tapping through all five fields quickly) don't
+ * queue up multiple simultaneous SQLite reads on the UI thread.
  */
 export const useValidation = (letter: string) => {
   const [validationState, setValidationState] = useState<ValidationState>({});
   const activeCheckRef = useRef<Record<string, number>>({});
+  const debounceTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   // No need to initialise the DB here — _layout.tsx guarantees initDatabase()
   // completes (and the app gates behind an error screen if it fails) before
   // any screen — and therefore this hook — can ever be mounted.
 
   const validate = useCallback(
-    async (category: string, word: string) => {
+    (category: string, word: string) => {
+      // Cancel any pending debounced call for this category
+      if (debounceTimersRef.current[category] !== undefined) {
+        clearTimeout(debounceTimersRef.current[category]);
+      }
+
       if (!word.trim()) {
         setValidationState((prev) => ({ ...prev, [category]: 'idle' }));
         return;
       }
 
-      // Mark as checking and bump a version counter to discard stale results
-      const version = (activeCheckRef.current[category] ?? 0) + 1;
-      activeCheckRef.current[category] = version;
-
+      // Show "checking" immediately so the UI feels responsive
       setValidationState((prev) => ({ ...prev, [category]: 'checking' }));
 
-      const valid = await isValidWord(category, letter, word);
+      debounceTimersRef.current[category] = setTimeout(async () => {
+        // Bump a version counter to discard results from stale in-flight checks
+        const version = (activeCheckRef.current[category] ?? 0) + 1;
+        activeCheckRef.current[category] = version;
 
-      // Ignore if a newer check was started
-      if (activeCheckRef.current[category] !== version) return;
+        const valid = await isValidWord(category, letter, word);
 
-      setValidationState((prev) => ({
-        ...prev,
-        [category]: valid ? 'valid' : 'invalid',
-      }));
+        if (activeCheckRef.current[category] !== version) return;
+
+        setValidationState((prev) => ({
+          ...prev,
+          [category]: valid ? 'valid' : 'invalid',
+        }));
+      }, DEBOUNCE_MS);
     },
     [letter],
   );
 
   const resetValidation = useCallback(() => {
+    // Flush all pending timers before clearing state
+    Object.values(debounceTimersRef.current).forEach(clearTimeout);
+    debounceTimersRef.current = {};
     setValidationState({});
     activeCheckRef.current = {};
+  }, []);
+
+  // Clean up on unmount
+  useEffect(() => {
+    return () => {
+      Object.values(debounceTimersRef.current).forEach(clearTimeout);
+    };
   }, []);
 
   return { validationState, validate, resetValidation };

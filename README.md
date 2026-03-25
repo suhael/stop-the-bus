@@ -46,12 +46,4 @@ style={{ flex: 1 }}
 
   </ScrollView>
 </KeyboardAvoidingView>
-Note: keyboardShouldPersistTaps="handled" ensures that if they tap the "Stop" button while the keyboard is open, it registers the tap instantly instead of just dismissing the keyboard.
-
-B. Case-Insensitive Local SQLite Validation
-Just like we fixed on the backend, make sure your mobile isValidWord query doesn't punish users for capitalization.
-
-The Query: Ensure your local check uses SELECT 1 FROM dictionary WHERE category = ? AND LOWER(word) = LOWER(?) LIMIT 1; so "apple" and "Apple" both turn the box green.
-
-C. Debounce the "On Blur"
-If a user types fast and constantly clicks between boxes, you might spam your local SQLite DB. It's fast, but wrapping your local validation call in a tiny 150ms debounce function (or just ensuring it strictly only fires on the onBlur event of the TextInput) will save UI thread performance.
+Note: keyboardShouldPersistTaps="handled" ensures that if they tap the "Stop" button while the keyboard is open, it registe rs the tap instantly instead of just dismissing the keyboard.
