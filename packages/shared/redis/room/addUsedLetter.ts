@@ -1,4 +1,4 @@
-import { client } from "../client.ts";
+import { client } from "../client";
 
 // Add a letter to the used letters set for this game
 export const addUsedLetter = async (roomId: string, letter: string): Promise<void> => {

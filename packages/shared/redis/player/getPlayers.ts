@@ -1,4 +1,4 @@
-import { client } from "../client.ts";
+import { client } from "../client";
 
 // Get all players in order
 export const getPlayers = async (roomId: string): Promise<string[]> => {

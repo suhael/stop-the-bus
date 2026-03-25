@@ -1,5 +1,5 @@
 
-import { client } from "../client.ts";
+import { client } from "../client";
 
 // Set the current letter for the round
 export const setLetter = async (

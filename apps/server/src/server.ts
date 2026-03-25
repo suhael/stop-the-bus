@@ -2,7 +2,7 @@ import express from "express";
 import http from "http";
 import { Server } from "socket.io";
 import { connectRedis } from "@stop-the-bus/shared/redis";
-import registerEventHandlers from "./eventHandlers/index.ts";
+import registerEventHandlers from "./eventHandlers/index";
 import "dotenv/config";
 
 const app = express();

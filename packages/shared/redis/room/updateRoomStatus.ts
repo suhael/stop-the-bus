@@ -1,5 +1,5 @@
 
-import { client } from "../client.ts";
+import { client } from "../client";
 
 // Update the room status (WAITING, PLAYING, SCRAMBLE, SCORING)
 export const updateRoomStatus = async (

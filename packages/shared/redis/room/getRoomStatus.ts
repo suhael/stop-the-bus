@@ -1,4 +1,4 @@
-import { client } from "../client.ts";
+import { client } from "../client";
 
 // Get room status
 export const getRoomStatus = async (roomId: string): Promise<string | undefined> => {

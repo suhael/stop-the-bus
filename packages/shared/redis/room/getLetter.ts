@@ -1,4 +1,4 @@
-import { client } from "../client.ts";
+import { client } from "../client";
 
 // Get the current letter for the round
 export const getLetter = async (roomId: string): Promise<string | undefined> => {

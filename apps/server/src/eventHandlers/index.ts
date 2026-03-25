@@ -1,9 +1,9 @@
-import createRoom from "./createRoom.ts";
-import joinRoom from "./joinRoom.ts";
-import disconnect from "./disconnect.ts";
-import startGame from "./startGame.ts";
-import stopBus from "./stopBus.ts";
-import submitWords from "./submitWords.ts";
+import createRoom from "./createRoom";
+import { joinRoom } from "./joinRoom";
+import disconnect from "./disconnect";
+import startGame from "./startGame";
+import stopBus from "./stopBus";
+import submitWords from "./submitWords";
 
 /**
  * Register all socket.io event handlers

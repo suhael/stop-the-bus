@@ -1,4 +1,4 @@
-import { client } from "../client.ts";
+import { client } from "../client";
 
 // Store player metadata (nickname, joinedAt, etc.)
 export const setPlayerMetadata = async (roomId: string, userId: string, nickname: string): Promise<void> => {

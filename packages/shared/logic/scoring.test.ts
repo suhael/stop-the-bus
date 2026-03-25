@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { calculateScores } from "./scoring.ts";
+import { calculateScores } from "./scoring";
 
 describe("Scoring Logic - calculateScores()", () => {
   describe("Unique vs Shared Words", () => {

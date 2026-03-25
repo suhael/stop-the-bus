@@ -1,5 +1,5 @@
 
-import { client } from "../client.ts";
+import { client } from "../client";
 
 // Save a player's answers for a specific round in a room
 export const savePlayerAnswers = async (

@@ -1,4 +1,4 @@
-import { client } from "../client.ts";
+import { client } from "../client";
 
 // Get all player answers for a specific round in a room
 // Returns: { userId: answersObj, ... }

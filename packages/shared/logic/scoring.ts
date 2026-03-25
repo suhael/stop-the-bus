@@ -1,5 +1,5 @@
 
-import { isValidWord } from "./dictionary.ts";
+import { isValidWord } from "./dictionary";
 
 export interface PlayerAnswers {
   [playerId: string]: {
