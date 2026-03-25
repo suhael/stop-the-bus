@@ -10,14 +10,14 @@ import submitWords from "./submitWords.ts";
  */
 const registerSocketHandlers = (io: any) => {
   // Global map to track userId -> socket.id for current active connections
-  const userSocketMap = new Map();
+  const userSocketMap = new Map<string, string>();
 
   // Map to track room scoring timeouts - keyed by roomId
   // This survives socket disconnections so room progress isn't blocked
-  const roomScoringTimeouts = new Map();
+  const roomScoringTimeouts = new Map<string, NodeJS.Timeout>();
+  const pendingDisconnects = new Map<string, NodeJS.Timeout>();
 
   io.on("connection", (socket: any) => {
-    const pendingDisconnects = new Map();
     console.log(`\n👤 New connection... (Socket ID: ${socket.id})`);
 
     // Register all event handlers

@@ -32,15 +32,8 @@ const stopBus = (socket: any, io: any, roomScoringTimeouts: Map<string, any>) =>
         });
         return;
       }
-
-      // 2. Immediately change status to SCRAMBLE
-      await RedisService.updateRoomStatus(roomId, "SCRAMBLE");
-
-      console.log(
-        `🛑 Player ${userId} stopped the bus! Room ${roomId} now in SCRAMBLE mode.`,
-      );
-
-      // 3. Validate that userId is in the room players list
+      
+      // 2. Validate that userId is in the room players list
       const players = await RedisService.getPlayers(roomId);
       if (!players.includes(userId)) {
         socket.emit("ERROR", {
@@ -49,6 +42,14 @@ const stopBus = (socket: any, io: any, roomScoringTimeouts: Map<string, any>) =>
         });
         return;
       }
+
+      // 3. Immediately change status to SCRAMBLE
+      await RedisService.updateRoomStatus(roomId, "SCRAMBLE");
+
+      console.log(
+        `🛑 Player ${userId} stopped the bus! Room ${roomId} now in SCRAMBLE mode.`,
+      );
+
 
       // 4. Emit START_SCRAMBLE with 3-second duration to all players
       io.to(roomId).emit("START_SCRAMBLE", {

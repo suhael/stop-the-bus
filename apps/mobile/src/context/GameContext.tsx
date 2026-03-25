@@ -1,4 +1,3 @@
-// apps/mobile/src/context/GameContext.tsx
 import React, {
   createContext,
   useCallback,
@@ -279,7 +278,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           };
 
           if (!socket.connected) {
-            // Socket was killed by OS — wait for handshake before emitting
+            // Socket was killed by the OS — wait for handshake before emitting
             console.log('[AppState] Socket dead. Reconnecting then re-joining...');
             socket.once('connect', doRejoin);
             socket.connect();
@@ -328,6 +327,27 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
     };
 
+    // Fired instead of ROOM_JOINED when returning mid-game so the app never
+    // flashes back to the Lobby screen.
+    const onGameRejoined = async (data: any) => {
+      await setLastRoomCode(data.roomCode);
+      // Restore room identity silently
+      dispatch({
+        type: 'ROOM_JOINED',
+        payload: {
+          roomCode: data.roomCode,
+          roomId: data.roomId,
+          players: data.players,
+          categories: data.categories,
+        },
+      });
+      // Then immediately jump to the right in-game screen
+      if (data.status === 'SCRAMBLE') {
+        dispatch({ type: 'SCRAMBLE_STARTED', payload: { duration: 0 } });
+      }
+      dispatch({ type: 'GAME_STARTED', payload: { round: data.round, letter: data.letter } });
+    };
+
     const onPassengerJoined = (data: any) => dispatch({ type: 'PASSENGER_JOINED', payload: data });
     const onPassengerLeft = (data: any) => dispatch({ type: 'PASSENGER_LEFT', payload: data });
     const onGameStarted = (data: any) => dispatch({ type: 'GAME_STARTED', payload: data });
@@ -339,6 +359,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     socket.on('ROOM_CREATED', onRoomCreated);
     socket.on('ROOM_JOINED', onRoomJoined);
+    socket.on('GAME_REJOINED', onGameRejoined);
     socket.on('PASSENGER_JOINED', onPassengerJoined);
     socket.on('PASSENGER_LEFT', onPassengerLeft);
     socket.on('GAME_STARTED', onGameStarted);
@@ -351,6 +372,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => {
       socket.off('ROOM_CREATED', onRoomCreated);
       socket.off('ROOM_JOINED', onRoomJoined);
+      socket.off('GAME_REJOINED', onGameRejoined);
       socket.off('PASSENGER_JOINED', onPassengerJoined);
       socket.off('PASSENGER_LEFT', onPassengerLeft);
       socket.off('GAME_STARTED', onGameStarted);

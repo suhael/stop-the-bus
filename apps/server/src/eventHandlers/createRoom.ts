@@ -60,10 +60,9 @@ const createRoom = (socket: any, io: any, userSocketMap: Map<string, string>) =>
       userSocketMap.set(userId, socket.id);
 
       // 3. Create the room in Redis with the code (using userId, not socket.id)
+      //    RedisService.createRoom already writes code:{roomCode} -> roomId, so no
+      //    separate client.set is needed here.
       await RedisService.createRoom(roomId, userId, roomCode);
-
-      // 4. Update code mapping to point to actual roomId (now that room is created)
-      await client.set(`code:${roomCode}`, roomId, { EX: 86400 });
 
       // 4. Store player metadata with sanitized nickname
       await RedisService.setPlayerMetadata(roomId, userId, cleanNickname);

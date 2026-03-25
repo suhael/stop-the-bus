@@ -1,5 +1,6 @@
 import { RedisService } from "@stop-the-bus/shared/redis";
 import roundResults from "./roundResults.ts";
+import { client } from "@stop-the-bus/shared/redis/client";
 
 // SUBMIT_WORDS event handler
 // payload: { answers: { category1: word1, ... } }
@@ -50,6 +51,16 @@ const submitWords = (socket: any, io: any, roomScoringTimeouts: Map<string, any>
         clearTimeout(roomScoringTimeouts.get(roomId));
         roomScoringTimeouts.delete(roomId);
       }
+
+      // 🔥 FIX: Atomic lock (expires in 10s to prevent permanent deadlocks)
+      const lockKey = `room:${roomId}:scoring_lock`;
+      const lockAcquired = await client.set(lockKey, "locked", { NX: true, EX: 10 });
+
+      if (!lockAcquired) {
+        console.log(`[Scoring] Calculation already triggered for ${roomId}, skipping.`);
+        return;
+      }
+
 
       // All players submitted: trigger scoring (emit internal event or call scoring logic)
       // NOTE: In rare cases, two players submitting at the same time may both trigger this event.

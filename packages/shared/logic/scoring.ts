@@ -66,25 +66,14 @@ export const calculateScores = (
       continue;
     }
     for (const [category, word] of Object.entries(answers)) {
-      // Skip empty or null words
       if (!word || typeof word !== "string" || word.trim().length === 0) {
         continue;
       }
       const normalizedWord = word.toLowerCase().trim();
-      // LETTER VALIDATION: Skip if doesn't start with correct letter
-      if (!normalizedWord.startsWith(letter.toLowerCase())) {
-        continue;
-      }
-      // SERVER DICTIONARY VALIDATION (Cross-reference)
-      if (!isValidWord(category, letter, normalizedWord)) {
-        continue;
-      }
-      // Get category frequency map
-      if (!wordFrequencyByCategory[category]) {
-        continue;
-      }
+      // The frequency map was built only from words that passed both letter
+      // and dictionary validation — no need to re-validate here.
       const playerCount =
-        wordFrequencyByCategory[category][normalizedWord]?.length || 0;
+        wordFrequencyByCategory[category]?.[normalizedWord]?.length ?? 0;
       if (playerCount === 1) {
         // Unique word in this category: 10 points
         playerScore += 10;

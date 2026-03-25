@@ -1,4 +1,3 @@
-// apps/server/src/eventHandlers/joinRoom.ts
 import { Server, Socket } from "socket.io";
 import { RedisService } from "@stop-the-bus/shared/redis";
 import {
@@ -59,12 +58,13 @@ export const joinRoom = (
         return;
       }
 
-      // 3a. Fetch existing players to detect a mid-game reconnect
-      const existingPlayers = await RedisService.getPlayers(roomId);
-      const isRejoining = existingPlayers.includes(userId);
-
+      // 🚨 CRITICAL FIX 1: Check if they are already in the room
       const status = await RedisService.getRoomStatus(roomId);
-      if (status !== "WAITING" && !isRejoining) {
+      const players = await RedisService.getPlayers(roomId);
+      const isReturningPlayer = players.includes(userId);
+
+      // Only block if the game started AND they aren't already in it
+      if (status !== "WAITING" && !isReturningPlayer) {
         socket.emit("ERROR", { code: "ROOM_NOT_WAITING", message: "Game already in progress" });
         return;
       }
@@ -81,8 +81,8 @@ export const joinRoom = (
       // 6. Physically join the Socket.io room channel
       socket.join(roomId);
 
-      // 7. Persist to Redis
-      if (!isRejoining) {
+      // 7. Persist to Redis (only add if they aren't already there)
+      if (!isReturningPlayer) {
         await RedisService.addPlayer(roomId, userId);
       }
       await RedisService.setPlayerMetadata(roomId, userId, cleanNickname);
@@ -98,21 +98,41 @@ export const joinRoom = (
         isDriver: p.userId === hostId,
       }));
 
-      // 9. Send success back to the joiner
-      socket.emit("ROOM_JOINED", {
-        roomCode,
-        roomId,
-        players: formattedPlayers,
-        categories: await getCategories(),
-      });
+      const categories = await getCategories();
 
-      // 10. Broadcast to everyone else in the lobby
-      socket.to(roomId).emit("PASSENGER_JOINED", {
-        playerId: userId,
-        nickname: cleanNickname,
-        isDriver: userId === hostId,
-        categories: await getCategories(),
-      });
+      // 9. If reconnecting mid-game, send a single GAME_REJOINED event that carries
+      //    all the room state the client needs — skipping ROOM_JOINED entirely so the
+      //    mobile app never flashes back to the Lobby screen.
+      if (isReturningPlayer && (status === "PLAYING" || status === "SCRAMBLE")) {
+        const round = await RedisService.getRound(roomId);
+        const letter = await RedisService.getLetter(roomId);
+
+        socket.emit("GAME_REJOINED", {
+          roomCode,
+          roomId,
+          players: formattedPlayers,
+          categories,
+          round,
+          letter,
+          status, // lets the client jump straight to SCRAMBLE if needed
+        });
+      } else {
+        // Normal path: fresh join while in the lobby
+        socket.emit("ROOM_JOINED", {
+          roomCode,
+          roomId,
+          players: formattedPlayers,
+          categories,
+        });
+
+        // 10. Broadcast to everyone else in the lobby
+        socket.to(roomId).emit("PASSENGER_JOINED", {
+          playerId: userId,
+          nickname: cleanNickname,
+          isDriver: userId === hostId,
+          categories,
+        });
+      }
 
     } catch (err: any) {
       console.error("🚨 Boarding Error:", { error: err?.message, code: err?.code });

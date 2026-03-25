@@ -56,6 +56,7 @@ const GameplayScreen: React.FC = () => {
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
       >
         {categories.map((cat) => (

@@ -6,6 +6,7 @@ import { getRoomFromCode } from "./room/getRoomFromCode.ts";
 import { getRoomStatus } from "./room/getRoomStatus.ts";
 import { getRoomIdForUser } from "./room/getRoomIdForUser.ts";
 import { getRound } from "./room/getRound.ts";
+import { getLetter } from "./room/getLetter.ts";
 import { updateRoomStatus } from "./room/updateRoomStatus.ts";
 import { setLetter } from "./room/setLetter.ts";
 import { getUsedLetters } from "./room/getUsedLetters.ts";
@@ -29,6 +30,7 @@ export const RedisService = {
   getRoomStatus,
   getRoomIdForUser,
   getRound,
+  getLetter,
   updateRoomStatus,
   setLetter,
   getUsedLetters,

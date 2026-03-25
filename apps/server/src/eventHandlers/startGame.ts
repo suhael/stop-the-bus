@@ -100,8 +100,8 @@ const startGame = (socket: any, io: any) => {
         `🎮 Game started in room ${roomId} | Round: ${currentRound} | Letter: ${letter}`,
       );
 
-      // 7. Emit ROUND_START to the room with letter and round number
-      io.to(roomId).emit("ROUND_START", {
+      // 7. Emit GAME_STARTED to the room with letter and round number
+      io.to(roomId).emit("GAME_STARTED", {
         letter,
         round: currentRound,
         categories: getCategories(),
