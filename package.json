@@ -13,8 +13,8 @@
     "redis:stop": "docker-compose stop",
     "redis:seed": "npm run seed --workspace=@stop-the-bus/server",
     "server:dev": "npm run dev --workspace=@stop-the-bus/server",
-    "mobile:start": "npm run start --workspace=@stop-the-bus/mobile",
-    "db:copy": "cp data/game.db apps/mobile/assets/words.db",
+    "mobile:start": "npm run start --workspace=@stop-the-bus/mobile -- --clear",
+    "db:copy": "cp data/game.db apps/mobile/assets/game.db",
     "db:flush": "docker exec -it stb_redis redis-cli FLUSHALL",
     "test": "vitest",
 

@@ -74,7 +74,7 @@
 The mobile app relies on handling three distinct types of state to ensure a smooth, lag-free experience while maintaining server authority:
 
 1. **Server State (Socket.io):** Real-time events orchestrated by the backend (e.g., lobby updates, remote scramble timers, official round results).
-2. **Local Knowledge (SQLite):** A bundled `words.db` file used strictly for instant "On Blur" validation, providing zero-latency UI feedback (Green/Red inputs) without waiting for network requests.
+2. **Local Knowledge (SQLite):** A bundled `game.db` file used strictly for instant "On Blur" validation, providing zero-latency UI feedback (Green/Red inputs) without waiting for network requests.
 3. **Global UI State:** React Context/State tracking the current active screen, the player's nickname, local timer visualizations, and the persistent `userId`.
 
 ## 8. Folder Layout
@@ -84,7 +84,7 @@ To keep the monorepo clean and the app modular, the Expo project (`apps/mobile`)
 ```text
 apps/mobile/
 ├── assets/
-│   └── words.db           <-- Copied from backend for "Double-Check" validation
+│   └── game.db           <-- Copied from backend for "Double-Check" validation
 ├── src/
 │   ├── api/               <-- Socket.io initialization & event listeners
 │   ├── components/        <-- Reusable UI (CategoryInput, BusTimer, PlayerCard)

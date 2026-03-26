@@ -1,5 +1,5 @@
 import { RedisService } from "@stop-the-bus/shared/redis";
-import roundResults from "./roundResults";
+import roundResults from "./roundResults.ts";
 import { client } from "@stop-the-bus/shared/redis/client";
 
 // SUBMIT_WORDS event handler

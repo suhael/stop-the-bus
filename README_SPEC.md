@@ -119,7 +119,7 @@ Points are calculated server-side after the scramble:
 - **Valid & Shared:** 5 points (Used by 2 or more players).
 - **Speed Bonus:** +3 points to the player who emitted `STOP_CLICKED`.
 - **Invalid/Empty:** 0 points.
-- _Note: Validation uses SQLite 'words.db' on the Mobile side, but the Server performs the final cross-reference check._
+- _Note: Validation uses SQLite 'game.db' on the Mobile side, but the Server performs the final cross-reference check._
 
 ---
 

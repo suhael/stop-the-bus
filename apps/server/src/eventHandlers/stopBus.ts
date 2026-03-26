@@ -1,5 +1,5 @@
 import { RedisService } from "@stop-the-bus/shared/redis";
-import roundResults from "./roundResults";
+import roundResults from "./roundResults.ts";
 
 // Event: Stop the Bus - Triggered when a player finishes all categories
 const stopBus = (socket: any, io: any, roomScoringTimeouts: Map<string, any>) => {
