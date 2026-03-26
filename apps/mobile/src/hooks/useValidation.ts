@@ -33,8 +33,6 @@ export const useValidation = (letter: string) => {
   const validate = useCallback(
     (category: string, word: string) => {
 
-      console.log(`Validating category "${category}" with word "${word}" against letter "${letter}"`);
-
       // Cancel any pending debounced call for this category
       if (debounceTimersRef.current[category] !== undefined) {
         clearTimeout(debounceTimersRef.current[category]);
@@ -42,6 +40,7 @@ export const useValidation = (letter: string) => {
 
       if (!word.trim()) {
         setValidationState((prev) => ({ ...prev, [category]: 'idle' }));
+        setValidationErrors((prev) => ({ ...prev, [category]: '' }));
         return;
       }
 

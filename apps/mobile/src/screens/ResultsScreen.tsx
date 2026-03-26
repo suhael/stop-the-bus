@@ -14,7 +14,7 @@ const ResultsScreen: React.FC = () => {
   const isHost = players.find((p) => p.playerId === userId)?.isDriver ?? false;
   const hostTriggeredRef = useRef(false);
 
-  // 3-second countdown before the host triggers the next round
+  // 6-second countdown before the host triggers the next round
   const handleNextRound = () => {
     if (isHost && !hostTriggeredRef.current) {
       hostTriggeredRef.current = true;
@@ -22,7 +22,7 @@ const ResultsScreen: React.FC = () => {
     }
   };
 
-  const { seconds } = useCountdown(3, !!roundResult, handleNextRound);
+  const { seconds } = useCountdown(6, !!roundResult, handleNextRound);
 
   useEffect(() => {
     hostTriggeredRef.current = false;

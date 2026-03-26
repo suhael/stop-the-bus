@@ -58,21 +58,25 @@ const BusTimer: React.FC<BusTimerProps> = ({
   return (
     <View style={styles.wrapper}>
       {label && <Text style={styles.label}>{label}</Text>}
+      {/* Outer view owns the JS-driven background colour animation */}
       <Animated.View
         style={[
           styles.circle,
           isLarge ? styles.circleLarge : styles.circleSmall,
-          { backgroundColor, transform: [{ scale: scaleAnim }] },
+          { backgroundColor },
         ]}
       >
-        <Animated.Text
-          style={[
-            isLarge ? styles.textLarge : styles.textSmall,
-            { color: textColor },
-          ]}
-        >
-          {seconds}
-        </Animated.Text>
+        {/* Inner view owns the native-driver scale animation */}
+        <Animated.View style={[styles.scaleWrapper, { transform: [{ scale: scaleAnim }] }]}>
+          <Animated.Text
+            style={[
+              isLarge ? styles.textLarge : styles.textSmall,
+              { color: textColor },
+            ]}
+          >
+            {seconds}
+          </Animated.Text>
+        </Animated.View>
       </Animated.View>
     </View>
   );
@@ -92,6 +96,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: BorderRadius.full,
+  },
+  scaleWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   circleLarge: {
     width: 96,
