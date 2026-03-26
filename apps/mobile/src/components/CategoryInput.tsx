@@ -9,6 +9,7 @@ interface CategoryInputProps {
   letter: string;
   value: string;
   status: ValidationStatus;
+  errorMessage?: string;
   onChangeText: (text: string) => void;
   onBlur: () => void;
   disabled?: boolean;
@@ -33,6 +34,7 @@ const CategoryInput: React.FC<CategoryInputProps> = ({
   letter,
   value,
   status,
+  errorMessage,
   onChangeText,
   onBlur,
   disabled = false,
@@ -59,7 +61,6 @@ const CategoryInput: React.FC<CategoryInputProps> = ({
       </View>
 
       <View style={[styles.inputWrapper, { borderColor }]}>
-        <Text style={styles.letterHint}>{letter}</Text>
         <TextInput
           style={[styles.input, disabled && styles.inputDisabled]}
           value={value}
@@ -77,7 +78,7 @@ const CategoryInput: React.FC<CategoryInputProps> = ({
 
       {status === 'invalid' && (
         <Text style={styles.errorHint}>
-          Not found in dictionary — still counts if teammates agree!
+          {errorMessage ?? 'Not found in dictionary — still counts if teammates agree!'}
         </Text>
       )}
     </View>
@@ -109,12 +110,6 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
-  },
-  letterHint: {
-    ...Typography.bodyBold,
-    color: Colors.primary,
-    marginRight: Spacing.xs,
-    opacity: 0.6,
   },
   input: {
     ...Typography.body,

@@ -16,7 +16,7 @@ const GameplayScreen: React.FC = () => {
   const { state, setAnswer, stopBus } = useGame();
   const { categories, letter, round, answers, userId, players } = state;
 
-  const { validationState, validate, resetValidation } = useValidation(letter);
+  const { validationState, validationErrors, validate, resetValidation } = useValidation(letter);
 
   // Reset validation whenever the round/letter changes
   useEffect(() => {
@@ -66,6 +66,7 @@ const GameplayScreen: React.FC = () => {
             letter={letter}
             value={answers[cat] ?? ''}
             status={validationState[cat] ?? 'idle'}
+            errorMessage={validationErrors[cat]}
             onChangeText={(text) => setAnswer(cat, text)}
             onBlur={() => handleBlur(cat)}
           />

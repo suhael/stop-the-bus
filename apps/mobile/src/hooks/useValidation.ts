@@ -5,6 +5,10 @@ interface ValidationState {
   [category: string]: 'idle' | 'valid' | 'invalid' | 'checking';
 }
 
+interface ValidationErrors {
+  [category: string]: string;
+}
+
 const DEBOUNCE_MS = 150;
 
 /**
@@ -18,6 +22,7 @@ const DEBOUNCE_MS = 150;
  */
 export const useValidation = (letter: string) => {
   const [validationState, setValidationState] = useState<ValidationState>({});
+  const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
   const activeCheckRef = useRef<Record<string, number>>({});
   const debounceTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
@@ -27,6 +32,9 @@ export const useValidation = (letter: string) => {
 
   const validate = useCallback(
     (category: string, word: string) => {
+
+      console.log(`Validating category "${category}" with word "${word}" against letter "${letter}"`);
+
       // Cancel any pending debounced call for this category
       if (debounceTimersRef.current[category] !== undefined) {
         clearTimeout(debounceTimersRef.current[category]);
@@ -34,6 +42,16 @@ export const useValidation = (letter: string) => {
 
       if (!word.trim()) {
         setValidationState((prev) => ({ ...prev, [category]: 'idle' }));
+        return;
+      }
+
+      // Letter-start check: fast, synchronous, no need to hit the DB
+      if (!word.trim().toLowerCase().startsWith(letter.toLowerCase())) {
+        setValidationState((prev) => ({ ...prev, [category]: 'invalid' }));
+        setValidationErrors((prev) => ({
+          ...prev,
+          [category]: `Word must start with '${letter.toUpperCase()}'`,
+        }));
         return;
       }
 
@@ -49,6 +67,10 @@ export const useValidation = (letter: string) => {
 
         if (activeCheckRef.current[category] !== version) return;
 
+        setValidationErrors((prev) => ({
+          ...prev,
+          [category]: valid ? '' : 'Not found in dictionary — still counts if teammates agree!',
+        }));
         setValidationState((prev) => ({
           ...prev,
           [category]: valid ? 'valid' : 'invalid',
@@ -63,6 +85,7 @@ export const useValidation = (letter: string) => {
     Object.values(debounceTimersRef.current).forEach(clearTimeout);
     debounceTimersRef.current = {};
     setValidationState({});
+    setValidationErrors({});
     activeCheckRef.current = {};
   }, []);
 
@@ -73,5 +96,5 @@ export const useValidation = (letter: string) => {
     };
   }, []);
 
-  return { validationState, validate, resetValidation };
+  return { validationState, validationErrors, validate, resetValidation };
 };
