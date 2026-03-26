@@ -1,6 +1,7 @@
-import { RedisService } from "@stop-the-bus/shared/redis";
+import { removePlayerFromRoom } from "../utils/removePlayerFromRoom.ts";
 
-// Event: Disconnect
+// Event: Disconnect (network drop / app backgrounded)
+// Uses a 5-second grace period so brief disconnects don't boot a player.
 const disconnect = (socket: any, io: any, pendingDisconnects: Map<string, any>, userSocketMap: Map<string, string>) => {
   return async () => {
     const roomId = socket.currentRoom;
@@ -24,38 +25,7 @@ const disconnect = (socket: any, io: any, pendingDisconnects: Map<string, any>, 
       );
 
       try {
-        // Check room status to determine if special handling is needed
-        const roomStatus = await RedisService.getRoomStatus(roomId);
-
-        // Determine if the departing player is the current host before removing them
-        const currentHostId = await RedisService.getHost(roomId);
-        const isHostLeaving = currentHostId === userId;
-
-        const newHostId = await RedisService.removePlayer(roomId, userId);
-
-        if (newHostId === null) {
-          // No players left - clean up entire room
-          await RedisService.cleanupRoom(roomId);
-          console.log(`🧹 Cleaned up empty room: ${roomId}`);
-        } else {
-          // Always notify remaining players that this player left.
-          // Include newHostId only when the host actually changed so the
-          // client can promote the new driver without a separate HOST_MIGRATED.
-          io.to(roomId).emit("PASSENGER_LEFT", {
-            playerId: userId,
-            newHostId: isHostLeaving ? newHostId : undefined,
-          });
-
-          if (isHostLeaving) {
-            if (roomStatus === "PLAYING" || roomStatus === "SCRAMBLE") {
-              console.log(
-                `⚠️  Host left during ${roomStatus} phase. New host assigned: ${newHostId}`,
-              );
-            }
-            io.to(roomId).emit("HOST_MIGRATED", { newHostId });
-            console.log(`👑 Host Migrated to: ${newHostId}`);
-          }
-        }
+        await removePlayerFromRoom(io, roomId, userId);
       } catch (err: any) {
         console.error(
           `❌ Error during player removal (${userId}):`,

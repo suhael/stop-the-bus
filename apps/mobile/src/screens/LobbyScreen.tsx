@@ -13,7 +13,7 @@ import { useGame } from '@/src/context/GameContext';
 import { BorderRadius, Colors, Spacing, Typography } from '@/src/theme';
 
 const LobbyScreen: React.FC = () => {
-  const { state, startGame, resetGame } = useGame();
+  const { state, startGame, leaveRoom } = useGame();
   const { players, roomCode, userId, error } = state;
 
   const isHost = players.find((p) => p.playerId === userId)?.isDriver ?? false;
@@ -89,7 +89,7 @@ const LobbyScreen: React.FC = () => {
             </View>
           )}
 
-          <TouchableOpacity style={styles.leaveButton} onPress={resetGame}>
+          <TouchableOpacity style={styles.leaveButton} onPress={leaveRoom}>
             <Text style={styles.leaveText}>Leave Room</Text>
           </TouchableOpacity>
         </View>

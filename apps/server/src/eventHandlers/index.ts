@@ -1,5 +1,6 @@
 import createRoom from "./createRoom.ts";
 import { joinRoom } from "./joinRoom.ts";
+import leaveRoom from "./leaveRoom.ts";
 import disconnect from "./disconnect.ts";
 import startGame from "./startGame.ts";
 import stopBus from "./stopBus.ts";
@@ -25,6 +26,10 @@ const registerSocketHandlers = (io: any) => {
     socket.on(
       "JOIN_ROOM",
       joinRoom(socket, io, pendingDisconnects, userSocketMap),
+    );
+    socket.on(
+      "LEAVE_ROOM",
+      leaveRoom(socket, io, pendingDisconnects, userSocketMap),
     );
     socket.on("START_GAME", startGame(socket, io));
     socket.on("STOP_CLICKED", stopBus(socket, io, roomScoringTimeouts));

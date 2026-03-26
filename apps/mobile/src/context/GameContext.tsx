@@ -100,6 +100,7 @@ type GameAction =
   | { type: 'INITIALIZE'; payload: { userId: string; nickname: string; screen: Screen } }
   | { type: 'SET_CONNECTION'; payload: boolean }
   | { type: 'SET_NICKNAME'; payload: string }
+  | { type: 'CHANGE_NICKNAME' }
   | { type: 'CREATE_ROOM_PENDING' }
   | { type: 'JOIN_ROOM_PENDING'; payload: { roomCode: string } }
   | {
@@ -131,6 +132,12 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return { ...state, isConnected: action.payload };
     case 'SET_NICKNAME':
       return { ...state, nickname: action.payload, screen: 'HOME' };
+    case 'CHANGE_NICKNAME':
+      return {
+        ...state,
+        nickname: '',
+        screen: 'NICKNAME',
+      };
     case 'CREATE_ROOM_PENDING':
       return { ...state, pendingJoin: true, error: null };
     case 'JOIN_ROOM_PENDING':
@@ -233,12 +240,14 @@ interface GameContextProps {
   state: GameState;
   createRoom: () => void;
   joinRoom: (roomCode: string) => void;
+  leaveRoom: () => void;
   startGame: () => void;
   stopBus: () => void;
   submitWords: () => void;
   setAnswer: (category: string, word: string) => void;
   setError: (error: string | null) => void;
   setNicknameAndProceed: (nickname: string) => Promise<void>;
+  changeNickname: () => void;
   resetGame: () => void;
 }
 
@@ -331,15 +340,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const onRoomCreated = async (data: any) => {
       await setLastRoomCode(data.roomCode);
-      dispatch({
-        type: 'ROOM_JOINED',
-        payload: {
-          roomCode: data.roomCode,
-          roomId: data.roomId,
-          players: data.players ?? [],
-          categories: data.categories,
-        },
-      });
+      // Piggyback on the normal join flow so the host goes through the same
+      // lobby entry path as any other passenger (player list, categories, etc.)
+      const { userId, nickname } = stateRef.current;
+      socket.emit('JOIN_ROOM', { roomCode: data.roomCode, userId, nickname });
     };
 
     const onRoomJoined = async (data: any) => {
@@ -435,6 +439,12 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     dispatch({ type: 'SET_NICKNAME', payload: name });
   }, []);
 
+  const changeNickname = useCallback(() => {
+    // You might also want to clear it from persistent storage here if you use AsyncStorage
+    // AsyncStorage.removeItem('nickname'); 
+    dispatch({ type: 'CHANGE_NICKNAME' });
+  }, []);
+
   const createRoom = useCallback(() => {
     dispatch({ type: 'CREATE_ROOM_PENDING' });
     getSocket().emit('CREATE_ROOM', {
@@ -473,6 +483,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     dispatch({ type: 'SET_ERROR', payload: error });
   }, []);
 
+  const leaveRoom = useCallback(() => {
+    getSocket().emit('LEAVE_ROOM');
+    dispatch({ type: 'RESET_GAME' });
+  }, []);
+
   const resetGame = useCallback(() => {
     dispatch({ type: 'RESET_GAME' });
   }, []);
@@ -483,12 +498,14 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         state,
         createRoom,
         joinRoom,
+        leaveRoom,
         startGame,
         stopBus,
         submitWords,
         setAnswer,
         setError,
         setNicknameAndProceed,
+        changeNickname,
         resetGame,
       }}
     >

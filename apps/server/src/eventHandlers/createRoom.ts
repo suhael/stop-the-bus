@@ -2,7 +2,6 @@
 import { RedisService, client } from "@stop-the-bus/shared/redis";
 import { validateUserId, validateNickname } from "@stop-the-bus/shared/validators";
 import { InvalidInputError } from "@stop-the-bus/shared/errors";
-import { getCategories } from "@stop-the-bus/shared/logic/dictionary";
 
 // Generate a unique alphanumeric room code with atomic collision detection
 const generateUniqueRoomCode = async () => {
@@ -69,24 +68,9 @@ const createRoom = (socket: any, io: any, userSocketMap: Map<string, string>) =>
 
       console.log(`✅ Host (${userId}) created room: ${roomCode}`);
 
-      // 5. Join the Socket.io room immediately
-      socket.currentRoom = roomId;
-      socket.currentUserId = userId;
-      socket.nickname = cleanNickname;
-      socket.join(roomId);
-
-      // 6. Broadcast PASSENGER_JOINED so the creator sees themselves
-      // (No need to call getHost again - we know userId is the host)
-      const categories = getCategories();
-      io.to(roomId).emit("PASSENGER_JOINED", {
-        playerId: userId,
-        nickname: cleanNickname,
-        isDriver: true,
-        categories,
-      });
-
-      // 7. Return the code to the client so they can share it
-      socket.emit("ROOM_CREATED", { roomCode, roomId, categories });
+      // 5. Return the code to the client — the client will immediately emit JOIN_ROOM
+      //    which goes through the normal joinRoom flow (socket.join, player list, etc.)
+      socket.emit("ROOM_CREATED", { roomCode, roomId });
     } catch (err: any) {
       console.error("🚨 Room Creation Error:", {
         error: err?.message,

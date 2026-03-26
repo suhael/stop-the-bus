@@ -61,6 +61,7 @@ export const joinRoom = (
       // 🚨 CRITICAL FIX 1: Check if they are already in the room
       const status = await RedisService.getRoomStatus(roomId);
       const players = await RedisService.getPlayers(roomId);
+      console.log("number of players in room:", players.length);
       const isReturningPlayer = players.includes(userId);
 
       // Only block if the game started AND they aren't already in it

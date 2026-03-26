@@ -14,7 +14,7 @@ import { useGame } from '@/src/context/GameContext';
 import { BorderRadius, Colors, Spacing, Typography } from '@/src/theme';
 
 const HomeScreen: React.FC = () => {
-  const { state, createRoom, joinRoom, setNicknameAndProceed } = useGame();
+  const { state, createRoom, joinRoom, changeNickname, setError } = useGame();
   const [roomCode, setRoomCode] = useState('');
   const [mode, setMode] = useState<'home' | 'join'>('home');
 
@@ -27,7 +27,7 @@ const HomeScreen: React.FC = () => {
 
   const handleChangeNickname = async () => {
     // Cycle back to nickname screen
-    await setNicknameAndProceed('');
+    await changeNickname();
   };
 
   return (
@@ -79,7 +79,7 @@ const HomeScreen: React.FC = () => {
                 {pendingJoin ? (
                   <ActivityIndicator color={Colors.white} />
                 ) : (
-                  <Text style={styles.buttonText}>Create Room 🚪</Text>
+                  <Text style={styles.buttonText}>Create Room</Text>
                 )}
               </TouchableOpacity>
 
@@ -88,7 +88,7 @@ const HomeScreen: React.FC = () => {
                 onPress={() => setMode('join')}
                 activeOpacity={0.8}
               >
-                <Text style={styles.secondaryButtonText}>Join Room 🎫</Text>
+                <Text style={styles.secondaryButtonText}>Join Room</Text>
               </TouchableOpacity>
             </View>
           ) : (
@@ -129,6 +129,7 @@ const HomeScreen: React.FC = () => {
                 onPress={() => {
                   setMode('home');
                   setRoomCode('');
+                  setError(null);
                 }}
               >
                 <Text style={styles.backText}>← Back</Text>

@@ -63,7 +63,7 @@ const NicknameScreen: React.FC = () => {
             disabled={!input.trim()}
             activeOpacity={0.8}
           >
-            <Text style={styles.buttonText}>All Aboard! 🚀</Text>
+            <Text style={styles.buttonText}>All Aboard!</Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
