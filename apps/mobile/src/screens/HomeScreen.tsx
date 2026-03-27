@@ -120,7 +120,7 @@ const HomeScreen: React.FC = () => {
                 {pendingJoin ? (
                   <ActivityIndicator color={Colors.white} />
                 ) : (
-                  <Text style={styles.buttonText}>Board the Bus 🚀</Text>
+                  <Text style={styles.buttonText}>Board the Bus</Text>
                 )}
               </TouchableOpacity>
 
@@ -186,25 +186,23 @@ const styles = StyleSheet.create({
   errorText: { ...Typography.body, color: Colors.error },
   actions: { gap: Spacing.md },
   primaryButton: {
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.buttonBackground,
     borderRadius: BorderRadius.lg,
     paddingVertical: Spacing.md,
     alignItems: 'center',
   },
   secondaryButton: {
-    backgroundColor: Colors.surfaceAlt,
+    backgroundColor: Colors.buttonBackgroundDark,
     borderRadius: BorderRadius.lg,
     paddingVertical: Spacing.md,
     alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: Colors.border,
   },
   buttonDisabled: { opacity: 0.4 },
-  buttonText: { ...Typography.bodyBold, color: Colors.white, fontSize: 18 },
-  secondaryButtonText: { ...Typography.bodyBold, color: Colors.text, fontSize: 18 },
+  buttonText: { ...Typography.bodyBold, color: Colors.buttonText, fontSize: 18 },
+  secondaryButtonText: { ...Typography.bodyBold, color: Colors.buttonTextLight, fontSize: 18 },
   joinLabel: { ...Typography.caption, textAlign: 'center' },
   codeInput: {
-    backgroundColor: Colors.surfaceAlt,
+    backgroundColor: Colors.input,
     borderRadius: BorderRadius.md,
     borderWidth: 1.5,
     borderColor: Colors.border,

@@ -35,11 +35,10 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
           >
             {nickname}
           </Text>
-          {isYou && <Text style={styles.youBadge}>you</Text>}
         </View>
         {isHost && (
           <View style={styles.hostBadge}>
-            <Text style={styles.hostText}>🚌 Driver</Text>
+            <Text style={styles.hostText}>host</Text>
           </View>
         )}
       </View>
@@ -55,7 +54,7 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.surfaceAlt,
+    backgroundColor: Colors.white,
     borderRadius: BorderRadius.md,
     padding: Spacing.md,
     gap: Spacing.sm,
@@ -67,8 +66,7 @@ const styles = StyleSheet.create({
     gap: Spacing.xs,
   },
   cardSelf: {
-    borderColor: Colors.primary,
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.background,
   },
   avatar: {
     width: 44,
@@ -108,7 +106,9 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: Colors.primary,
     fontWeight: '600',
-    backgroundColor: Colors.errorDim,
+    backgroundColor: Colors.badge,
+    borderColor: Colors.error,
+    borderWidth: 1,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: BorderRadius.full,

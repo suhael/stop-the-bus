@@ -9,6 +9,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import PlayerCard from '@/src/components/PlayerCard';
+import LeaveRoomButton from '@/src/components/LeaveRoomButton';
+import WaitingBanner from '@/src/components/WaitingBanner';
 import { useGame } from '@/src/context/GameContext';
 import { BorderRadius, Colors, Spacing, Typography } from '@/src/theme';
 
@@ -78,20 +80,14 @@ const LobbyScreen: React.FC = () => {
                 disabled={!canStart}
                 activeOpacity={0.8}
               >
-                <Text style={styles.startButtonText}>Start Game 🚌</Text>
+                <Text style={styles.startButtonText}>Start Game</Text>
               </TouchableOpacity>
             </>
           ) : (
-            <View style={styles.waitingBanner}>
-              <Text style={styles.waitingBannerText}>
-                ⏳ Waiting for the driver to start…
-              </Text>
-            </View>
+            <WaitingBanner />
           )}
 
-          <TouchableOpacity style={styles.leaveButton} onPress={leaveRoom}>
-            <Text style={styles.leaveText}>Leave Room</Text>
-          </TouchableOpacity>
+          <LeaveRoomButton onPress={leaveRoom} />
         </View>
       </View>
     </SafeAreaView>
@@ -104,7 +100,7 @@ const styles = StyleSheet.create({
   header: {
     alignItems: 'center',
     marginBottom: Spacing.lg,
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.white,
     borderRadius: BorderRadius.lg,
     padding: Spacing.lg,
     borderWidth: 1,
@@ -133,17 +129,6 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: { opacity: 0.4 },
   startButtonText: { ...Typography.bodyBold, color: Colors.white, fontSize: 20 },
-  waitingBanner: {
-    backgroundColor: Colors.surfaceAlt,
-    borderRadius: BorderRadius.md,
-    padding: Spacing.md,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  waitingBannerText: { ...Typography.body, color: Colors.textMuted },
-  leaveButton: { alignItems: 'center', paddingVertical: Spacing.sm },
-  leaveText: { ...Typography.body, color: Colors.textDim },
   errorBanner: {
     backgroundColor: Colors.errorDim,
     borderRadius: BorderRadius.md,

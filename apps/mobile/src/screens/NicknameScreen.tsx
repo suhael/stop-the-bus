@@ -102,7 +102,7 @@ const styles = StyleSheet.create({
   },
   input: {
     width: '100%',
-    backgroundColor: Colors.surfaceAlt,
+    backgroundColor: Colors.input,
     borderRadius: BorderRadius.md,
     borderWidth: 1.5,
     borderColor: Colors.border,
@@ -123,7 +123,7 @@ const styles = StyleSheet.create({
   },
   button: {
     width: '100%',
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.buttonBackground,
     borderRadius: BorderRadius.lg,
     paddingVertical: Spacing.md,
     alignItems: 'center',
@@ -134,7 +134,7 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     ...Typography.bodyBold,
-    color: Colors.white,
+    color: Colors.buttonText,
     fontSize: 18,
   },
 });
