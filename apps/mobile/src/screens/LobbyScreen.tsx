@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   buttonDisabled: { opacity: 0.4 },
-  startButtonText: { ...Typography.bodyBold, color: Colors.white, fontSize: 20 },
+  startButtonText: { ...Typography.bodyBold, color: Colors.buttonText, fontSize: 20 },
   errorBanner: {
     backgroundColor: Colors.errorDim,
     borderRadius: BorderRadius.md,

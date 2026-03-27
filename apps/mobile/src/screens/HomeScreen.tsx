@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { router } from 'expo-router';
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
+  ImageBackground,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -14,32 +13,22 @@ import { useGame } from '@/src/context/GameContext';
 import { BorderRadius, Colors, Spacing, Typography } from '@/src/theme';
 
 const HomeScreen: React.FC = () => {
-  const { state, createRoom, joinRoom, changeNickname, setError } = useGame();
-  const [roomCode, setRoomCode] = useState('');
-  const [mode, setMode] = useState<'home' | 'join'>('home');
+  const { state, createRoom } = useGame();
 
   const { pendingJoin, error, nickname, isConnected } = state;
 
-  const handleJoin = () => {
-    if (roomCode.trim().length < 5) return;
-    joinRoom(roomCode.trim());
-  };
-
-  const handleChangeNickname = async () => {
-    // Cycle back to nickname screen
-    await changeNickname();
+  const handleChangeNickname = () => {
+    router.push('/nickname');
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <View style={styles.container}>
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.bus}>🚌</Text>
+    <ImageBackground
+      source={require('../../assets/images/splash-bg.png')}
+      style={styles.background}
+      resizeMode="cover"
+    >
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.content}>
             <Text style={styles.title}>Stop the Bus</Text>
             <View style={styles.playerRow}>
               <Text style={styles.playerName}>Hey, {nickname}!</Text>
@@ -58,8 +47,8 @@ const HomeScreen: React.FC = () => {
                 {isConnected ? 'Connected' : 'Disconnected'}
               </Text>
             </View>
-          </View>
-
+        </View>
+        <View style={styles.footer}>
           {/* Error */}
           {!!error && (
             <View style={styles.errorBanner}>
@@ -67,103 +56,50 @@ const HomeScreen: React.FC = () => {
             </View>
           )}
 
-          {/* Actions */}
-          {mode === 'home' ? (
-            <View style={styles.actions}>
-              <TouchableOpacity
-                style={styles.primaryButton}
-                onPress={createRoom}
-                disabled={pendingJoin}
-                activeOpacity={0.8}
-              >
-                {pendingJoin ? (
-                  <ActivityIndicator color={Colors.white} />
-                ) : (
-                  <Text style={styles.buttonText}>Create Room</Text>
-                )}
-              </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.primaryButton}
+            onPress={createRoom}
+            disabled={pendingJoin}
+            activeOpacity={0.8}
+            >
+            {pendingJoin ? (
+              <ActivityIndicator color={Colors.white} />
+            ) : (
+              <Text style={styles.buttonText}>Create Room</Text>
+            )}
+          </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.secondaryButton}
-                onPress={() => setMode('join')}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.secondaryButtonText}>Join Room</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <View style={styles.actions}>
-              <Text style={styles.joinLabel}>Enter the 5-character room code</Text>
-              <TextInput
-                style={styles.codeInput}
-                placeholder="XXXXX"
-                placeholderTextColor={Colors.textDim}
-                value={roomCode}
-                onChangeText={(t) => setRoomCode(t.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
-                autoCapitalize="characters"
-                autoCorrect={false}
-                maxLength={5}
-                returnKeyType="go"
-                onSubmitEditing={handleJoin}
-                autoFocus
-              />
-
-              <TouchableOpacity
-                style={[
-                  styles.primaryButton,
-                  roomCode.length < 5 && styles.buttonDisabled,
-                ]}
-                onPress={handleJoin}
-                disabled={roomCode.length < 5 || pendingJoin}
-                activeOpacity={0.8}
-              >
-                {pendingJoin ? (
-                  <ActivityIndicator color={Colors.white} />
-                ) : (
-                  <Text style={styles.buttonText}>Board the Bus</Text>
-                )}
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.backButton}
-                onPress={() => {
-                  setMode('home');
-                  setRoomCode('');
-                  setError(null);
-                }}
-              >
-                <Text style={styles.backText}>← Back</Text>
-              </TouchableOpacity>
-            </View>
-          )}
+          <TouchableOpacity
+            style={styles.secondaryButton}
+            onPress={() => router.push('/join')}
+            activeOpacity={0.8}
+            >
+            <Text style={styles.secondaryButtonText}>Join Room</Text>
+          </TouchableOpacity>
         </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+      </SafeAreaView>
+    </ImageBackground>
   );
 };
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.background },
-  flex: { flex: 1 },
-  container: {
+  background: { flex: 1, width: '100%', height: '100%' },
+  safe: { flex: 1, backgroundColor: 'transparent' },
+  content: {
     flex: 1,
-    paddingHorizontal: Spacing.xl,
-    justifyContent: 'center',
-    gap: Spacing.lg,
-  },
-  header: {
     alignItems: 'center',
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.xl,
     gap: Spacing.sm,
   },
-  bus: { fontSize: 60 },
-  title: { ...Typography.heading1, textAlign: 'center' },
+  title: { ...Typography.heading1, textAlign: 'center', color: Colors.white },
   playerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
   },
-  playerName: { ...Typography.body, color: Colors.textMuted },
-  changeLink: { ...Typography.caption, color: Colors.primary, textDecorationLine: 'underline' },
+  playerName: { ...Typography.body, color: 'rgba(255,255,255,0.85)' },
+  changeLink: { ...Typography.caption, color: Colors.white, textDecorationLine: 'underline' },
   connectionDot: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -175,7 +111,7 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
   },
-  connectionText: { ...Typography.caption },
+  connectionText: { ...Typography.caption, color: 'rgba(255,255,255,0.7)' },
   errorBanner: {
     backgroundColor: Colors.errorDim,
     borderRadius: BorderRadius.md,
@@ -184,9 +120,13 @@ const styles = StyleSheet.create({
     borderColor: Colors.error,
   },
   errorText: { ...Typography.body, color: Colors.error },
-  actions: { gap: Spacing.md },
+  footer: {
+    paddingHorizontal: Spacing.xl,
+    paddingBottom: Spacing.lg,
+    gap: Spacing.md
+  },
   primaryButton: {
-    backgroundColor: Colors.buttonBackground,
+    backgroundColor: Colors.primary,
     borderRadius: BorderRadius.lg,
     paddingVertical: Spacing.md,
     alignItems: 'center',
@@ -197,24 +137,8 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md,
     alignItems: 'center',
   },
-  buttonDisabled: { opacity: 0.4 },
   buttonText: { ...Typography.bodyBold, color: Colors.buttonText, fontSize: 18 },
   secondaryButtonText: { ...Typography.bodyBold, color: Colors.buttonTextLight, fontSize: 18 },
-  joinLabel: { ...Typography.caption, textAlign: 'center' },
-  codeInput: {
-    backgroundColor: Colors.input,
-    borderRadius: BorderRadius.md,
-    borderWidth: 1.5,
-    borderColor: Colors.border,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
-    ...Typography.heading2,
-    color: Colors.text,
-    textAlign: 'center',
-    letterSpacing: 8,
-  },
-  backButton: { alignItems: 'center', paddingVertical: Spacing.sm },
-  backText: { ...Typography.body, color: Colors.textMuted },
 });
 
 export default HomeScreen;

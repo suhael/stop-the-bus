@@ -8,6 +8,7 @@ import GameplayScreen from "@/src/screens/GameplayScreen";
 import ScrambleScreen from "@/src/screens/ScrambleScreen";
 import ResultsScreen from "@/src/screens/ResultsScreen";
 import GameOverScreen from "@/src/screens/GameOverScreen";
+import StartScreen from "@/src/screens/StartScreen";
 
 export default function Index() {
   const { state } = useGame();
@@ -19,6 +20,8 @@ export default function Index() {
           <ActivityIndicator size="large" color={Colors.primary} />
         </View>
       );
+    case "STARTGAME":
+      return <StartScreen />;
     case "NICKNAME":
       return <NicknameScreen />;
     case "HOME":

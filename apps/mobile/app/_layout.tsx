@@ -78,7 +78,17 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <GameProvider>
           <StatusBar style="dark" backgroundColor={Colors.background} />
-          <Stack screenOptions={{ headerShown: false }} />
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="index" />
+            <Stack.Screen
+              name="nickname"
+              options={{ presentation: 'modal', headerShown: false }}
+            />
+            <Stack.Screen
+              name="join"
+              options={{ presentation: 'modal', headerShown: false }}
+            />
+          </Stack>
         </GameProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

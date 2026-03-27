@@ -35,8 +35,6 @@ const NicknameScreen: React.FC = () => {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <View style={styles.container}>
-          <Text style={styles.bus}>🚌</Text>
-          <Text style={styles.title}>Stop the Bus</Text>
           <Text style={styles.subtitle}>Enter a nickname to get on board</Text>
 
           <TextInput

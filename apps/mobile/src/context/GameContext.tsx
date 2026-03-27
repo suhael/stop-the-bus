@@ -23,6 +23,7 @@ import {
 export type Screen =
   | 'LOADING'
   | 'NICKNAME'
+  | 'STARTGAME'
   | 'HOME'
   | 'LOBBY'
   | 'GAMEPLAY'
@@ -277,7 +278,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         payload: {
           userId: storedUserId,
           nickname: storedNickname || '',
-          screen: storedNickname ? 'HOME' : 'NICKNAME',
+          screen: storedNickname ? 'HOME' : 'STARTGAME',
         },
       });
 
