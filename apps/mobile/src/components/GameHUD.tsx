@@ -2,6 +2,7 @@
 import React, { useEffect, useRef } from 'react';
 import {
   ActionSheetIOS,
+  ActivityIndicator,
   Alert,
   Animated,
   BackHandler,
@@ -212,7 +213,7 @@ export default function GameHUD({ topInset, transparent = false }: GameHUDProps)
       <View style={styles.row}>
         {/* ── Left: Avatar + connection dot + name ─────────────────────── */}
         <View style={styles.leftSection}>
-          <View style={styles.avatarWrapper}>
+          <Animated.View style={[styles.avatarWrapper, !isConnected && styles.dimmed]}>
             <View style={[styles.avatar, { backgroundColor: avatarBg }]}>
               <Text style={styles.avatarInitial}>{initial}</Text>
             </View>
@@ -224,10 +225,13 @@ export default function GameHUD({ topInset, transparent = false }: GameHUDProps)
               ]}
               accessibilityLabel={isConnected ? 'Status: Connected' : 'Status: Disconnected'}
             />
-          </View>
-          <Text style={[styles.playerName, { color: nameColor }]} numberOfLines={1} ellipsizeMode="tail">
+          </Animated.View>
+          <Text style={[styles.playerName, { color: nameColor }, !isConnected && styles.dimmedText]} numberOfLines={1} ellipsizeMode="tail">
             {nickname}
           </Text>
+          {!isConnected && (
+            <ActivityIndicator size="small" color={transparent ? Colors.white : Colors.textMuted} style={styles.reconnectSpinner} />
+          )}
         </View>
 
         {/* ── Center: Round timer pill ──────────────────────────────────── */}
@@ -330,10 +334,12 @@ const styles = StyleSheet.create({
   playerName: {
     ...Typography.bodyBold,
     fontSize: 14,
-    flex: 1,
     flexShrink: 1,
     color: Colors.text,
   },
+  dimmed: { opacity: 0.35 },
+  dimmedText: { opacity: 0.35 },
+  reconnectSpinner: { marginLeft: 4 },
 
   // ── Center ────────────────────────────────────────────────────────────────
   centerSection: { flex: 1, alignItems: 'center' },

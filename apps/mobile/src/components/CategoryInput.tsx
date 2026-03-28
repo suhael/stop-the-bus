@@ -60,21 +60,19 @@ const CategoryInput: React.FC<CategoryInputProps> = ({
         )}
       </View>
 
-      <View style={[styles.inputWrapper, { borderColor }]}>
-        <TextInput
-          style={[styles.input, disabled && styles.inputDisabled]}
-          value={value}
-          onChangeText={onChangeText}
-          onBlur={onBlur}
-          placeholder={`${letter}…`}
-          placeholderTextColor={Colors.textDim}
-          autoCapitalize="words"
-          autoCorrect={false}
-          editable={!disabled}
-          returnKeyType="next"
-          maxLength={50}
-        />
-      </View>
+      <TextInput
+        style={[styles.input, { borderColor }, disabled && styles.inputDisabled]}
+        value={value}
+        onChangeText={onChangeText}
+        onBlur={onBlur}
+        placeholder={`${letter}…`}
+        placeholderTextColor={Colors.textDim}
+        autoCapitalize="words"
+        autoCorrect={false}
+        editable={!disabled}
+        returnKeyType="next"
+        maxLength={50}
+      />
 
       {status === 'invalid' && (
         <Text style={styles.errorHint}>
@@ -102,19 +100,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
   },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.surfaceAlt,
+  input: {
+    backgroundColor: Colors.input,
     borderRadius: BorderRadius.md,
     borderWidth: 1.5,
+    borderColor: Colors.border,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
-  },
-  input: {
     ...Typography.body,
-    flex: 1,
-    padding: 0,
     color: Colors.text,
   },
   inputDisabled: {

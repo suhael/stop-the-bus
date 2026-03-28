@@ -1,31 +1,39 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import CategoryInput from '@/src/components/CategoryInput';
 import GameActionBar from '@/src/components/GameActionBar';
 import { useGame } from '@/src/context/GameContext';
 import { useValidation } from '@/src/hooks/useValidation';
 import { useCountdown } from '@/src/hooks/useGameLoop';
-import { BorderRadius, Colors, Spacing, Typography } from '@/src/theme';
+import { Colors, Spacing, Typography } from '@/src/theme';
 
 const ROUND_DURATION = 180;
 
-const formatTime = (secs: number) => {
-  const m = Math.floor(secs / 60).toString().padStart(2, '0');
-  const s = (secs % 60).toString().padStart(2, '0');
-  return `${m}:${s}`;
-};
 
 const GameplayScreen: React.FC = () => {
   const { state, setAnswer, stopBus, submitWords } = useGame();
   const { categories, letter, round, answers, userId, players, scrambleTimeRemaining, stopClickedBy, roundEndTime } = state;
 
   const isScrambling = scrambleTimeRemaining > 0;
+
+  // ── Scramble haptic pulse — one light tap per second ─────────────────────
+  const lastScrambleSecRef = useRef<number | null>(null);
+  const { seconds: scrambleSeconds } = useCountdown(scrambleTimeRemaining, isScrambling);
+  useEffect(() => {
+    if (isScrambling && scrambleSeconds !== lastScrambleSecRef.current && scrambleSeconds > 0) {
+      lastScrambleSecRef.current = scrambleSeconds;
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+  }, [isScrambling, scrambleSeconds]);
 
   // ── Round timer — synced to server's absolute roundEndTime ───────────────
   const [roundSeconds, setRoundSeconds] = useState(() =>
@@ -59,11 +67,6 @@ const GameplayScreen: React.FC = () => {
       submitWords();
     }
   }, [submitWords, round]);
-  const { seconds: scrambleSeconds } = useCountdown(
-    scrambleTimeRemaining,
-    isScrambling,
-    handleScrambleComplete,
-  );
 
   const { validationState, validationErrors, validate, resetValidation } = useValidation(letter);
   useEffect(() => {
@@ -84,19 +87,27 @@ const GameplayScreen: React.FC = () => {
     [validate, answers],
   );
 
+  // ── Stop bus with haptic: Heavy on success, Error if not all filled ───────
+  const handleStopBus = useCallback(() => {
+    if (allFilled) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      stopBus();
+    } else {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    }
+  }, [allFilled, stopBus]);
+
   const stopper = players.find((p) => p.playerId === stopClickedBy);
   const stopperName = stopper ? stopper.nickname : 'Someone';
   const isYouStopped = stopClickedBy === userId;
 
-  const timerIsUrgent = !isScrambling && roundSeconds <= 30;
-  const timerColor = isScrambling
-    ? Colors.error
-    : timerIsUrgent
-    ? Colors.warning
-    : Colors.primary;
-
   return (
     <SafeAreaView style={styles.safe} edges={['bottom', 'left', 'right']}>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
+      >
       {/* Round / Letter header */}
       <View style={styles.header}>
         <Text style={styles.letterSubtitle}>Start every word with</Text>
@@ -142,64 +153,33 @@ const GameplayScreen: React.FC = () => {
         round={round}
         allFilled={allFilled}
         isScrambling={isScrambling}
-        onStopBus={stopBus}
+        onStopBus={handleStopBus}
       />
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.background },
+  flex: { flex: 1 },
   header: {
-    paddingTop: Spacing.md,
-    paddingBottom: Spacing.md,
-    paddingHorizontal: Spacing.lg,
-    backgroundColor: Colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-    gap: Spacing.xs,
+    paddingTop: Spacing.sm,
+    paddingBottom: Spacing.sm,
+    backgroundColor: Colors.primaryDark,
     alignItems: 'center',
-  },
-  topRow: {
-    flexDirection: 'row',
-    width: '100%',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  roundBadge: {
-    backgroundColor: Colors.surfaceLight,
-    borderRadius: BorderRadius.full,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-  },
-  roundText: { ...Typography.label },
-  timerBadge: {
-    backgroundColor: Colors.surfaceLight,
-    borderRadius: BorderRadius.full,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  timerBadgeUrgent: {
-    borderColor: Colors.warning,
-    backgroundColor: Colors.surfaceLight,
-  },
-  timerBadgeScramble: {
-    borderColor: Colors.error,
-    backgroundColor: Colors.errorDim,
-  },
-  timerText: {
-    ...Typography.label,
-    fontVariant: ['tabular-nums'],
   },
   letterDisplay: {
-    fontSize: 80,
+    fontSize: 70,
     fontWeight: '900',
-    color: Colors.primary,
+    color: Colors.white,
     lineHeight: 90,
   },
-  letterSubtitle: { ...Typography.caption },
+  letterSubtitle: { 
+    ...Typography.bodyBold,
+    color: Colors.white,
+    fontSize: 14,
+  },
   scrambleBanner: {
     backgroundColor: Colors.errorDim,
     borderBottomWidth: 1,

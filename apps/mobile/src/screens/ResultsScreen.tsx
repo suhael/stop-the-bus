@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import BusTimer from '@/src/components/BusTimer';
@@ -6,6 +6,31 @@ import { useGame } from '@/src/context/GameContext';
 import { useCountdown } from '@/src/hooks/useGameLoop';
 import { BorderRadius, Colors, Spacing, Typography } from '@/src/theme';
 import { getScoreStyle } from '@/src/utils/format';
+
+// ── Count-up helper ───────────────────────────────────────────────────────────
+
+function useCountUp(target: number, active: boolean): number {
+  const [displayed, setDisplayed] = useState(active ? 0 : target);
+  useEffect(() => {
+    if (!active) { setDisplayed(target); return; }
+    setDisplayed(0);
+    const start = Date.now();
+    const duration = 900;
+    const id = setInterval(() => {
+      const t = Math.min((Date.now() - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
+      setDisplayed(Math.round(eased * target));
+      if (t >= 1) clearInterval(id);
+    }, 16);
+    return () => clearInterval(id);
+  }, [target, active]);
+  return displayed;
+}
+
+function AnimatedScore({ score, active }: { score: number; active: boolean }) {
+  const displayed = useCountUp(score, active);
+  return <Text style={styles.lbScore}>{displayed} pts</Text>;
+}
 
 const ResultsScreen: React.FC = () => {
   const { state, startGame } = useGame();
@@ -27,6 +52,11 @@ const ResultsScreen: React.FC = () => {
   useEffect(() => {
     hostTriggeredRef.current = false;
   }, [nextRound]);
+
+  // Animate scores only once when results arrive
+  const animatedRef = useRef(false);
+  const scoresActive = !!roundResult && !animatedRef.current;
+  if (roundResult && !animatedRef.current) animatedRef.current = true;
 
   if (!roundResult) return null;
 
@@ -64,7 +94,7 @@ const ResultsScreen: React.FC = () => {
                 {entry.nickname}
                 {entry.userId === userId ? ' (you)' : ''}
               </Text>
-              <Text style={styles.lbScore}>{entry.score} pts</Text>
+              <AnimatedScore score={entry.score} active={scoresActive} />
             </View>
           ))}
         </View>
