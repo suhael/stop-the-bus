@@ -69,4 +69,7 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
   return context.resolveRequest(context, moduleName, platform);
 };
 
+// Allow Metro to bundle .lottie files as static assets
+config.resolver.assetExts = [...config.resolver.assetExts, "lottie"];
+
 module.exports = config;

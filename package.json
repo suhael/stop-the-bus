@@ -17,7 +17,6 @@
     "db:copy": "cp data/game.db apps/mobile/assets/game.db",
     "db:flush": "docker exec -it stb_redis redis-cli FLUSHALL",
     "test": "vitest",
-
     "typecheck": "npm run typecheck --workspace=@stop-the-bus/shared && npm run typecheck --workspace=@stop-the-bus/server && tsc --noEmit -p apps/mobile/tsconfig.json",
     "build:shared": "npm run build --workspace=@stop-the-bus/shared",
     "build:server": "npm run build:shared && npm run build --workspace=@stop-the-bus/server",
@@ -32,6 +31,7 @@
     "vitest": "^4.1.0"
   },
   "dependencies": {
+    "lottie-react-native": "~7.3.1",
     "typescript": "^5.9.3"
   }
 }

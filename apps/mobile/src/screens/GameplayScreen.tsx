@@ -7,10 +7,11 @@ import {
   Text,
   View,
 } from 'react-native';
+import LottieView from 'lottie-react-native';
 import * as Haptics from 'expo-haptics';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import CategoryInput from '@/src/components/CategoryInput';
-import GameActionBar from '@/src/components/GameActionBar';
+import GameControlHeader from '@/src/components/GameControlHeader';
 import { useGame } from '@/src/context/GameContext';
 import { useValidation } from '@/src/hooks/useValidation';
 import { useCountdown } from '@/src/hooks/useGameLoop';
@@ -80,6 +81,14 @@ const GameplayScreen: React.FC = () => {
     [categories, answers],
   );
 
+  // All filled AND none flagged as invalid (idle/valid/checking are acceptable)
+  const allValid = useMemo(
+    () =>
+      allFilled &&
+      categories.every((cat) => validationState[cat] !== 'invalid'),
+    [allFilled, categories, validationState],
+  );
+
   const handleBlur = useCallback(
     (category: string) => {
       validate(category, answers[category] ?? '');
@@ -87,15 +96,10 @@ const GameplayScreen: React.FC = () => {
     [validate, answers],
   );
 
-  // ── Stop bus with haptic: Heavy on success, Error if not all filled ───────
+  // ── Stop bus — haptics handled inside GameControlHeader ─────────────────
   const handleStopBus = useCallback(() => {
-    if (allFilled) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-      stopBus();
-    } else {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-    }
-  }, [allFilled, stopBus]);
+    stopBus();
+  }, [stopBus]);
 
   const stopper = players.find((p) => p.playerId === stopClickedBy);
   const stopperName = stopper ? stopper.nickname : 'Someone';
@@ -103,17 +107,30 @@ const GameplayScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.safe} edges={['bottom', 'left', 'right']}>
+      {/* Lottie animated background — behind all content, non-interactive */}
+      <View style={styles.lottieContainer} pointerEvents="none">
+        <LottieView
+          source={require('../../assets/images/school-bus.json')}
+          autoPlay
+          loop
+          resizeMode="cover"
+          style={StyleSheet.absoluteFill}
+        />
+        <Text style={styles.roundOverlay}>Round {round}</Text>
+      </View>
+
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={0}
       >
-      {/* Round / Letter header */}
-      <View style={styles.header}>
-        <Text style={styles.letterSubtitle}>Start every word with</Text>
-        <Text style={styles.letterDisplay}>{letter}</Text>
-        <Text style={styles.letterSubtitle}>then press here to stop the bus</Text>
-      </View>
+      {/* Game control header — round, letter, stop button */}
+      <GameControlHeader
+        letter={letter}
+        isValid={allValid}
+        isScrambling={isScrambling}
+        onStop={handleStopBus}
+      />
 
       {/* Scramble warning banner */}
       {isScrambling && (
@@ -148,14 +165,6 @@ const GameplayScreen: React.FC = () => {
           />
         ))}
       </ScrollView>
-
-      {/* Bottom action bar — replaces the old footer */}
-      <GameActionBar
-        round={round}
-        allFilled={allFilled}
-        isScrambling={isScrambling}
-        onStopBus={handleStopBus}
-      />
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -164,22 +173,23 @@ const GameplayScreen: React.FC = () => {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.background },
   flex: { flex: 1 },
-  header: {
-    paddingTop: Spacing.sm,
-    paddingBottom: Spacing.sm,
-    backgroundColor: Colors.primaryDark,
+  lottieContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 192,
+    zIndex: -1,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  letterDisplay: {
-    fontSize: 70,
+  roundOverlay: {
+    fontSize: 22,
     fontWeight: '900',
     color: Colors.white,
-    lineHeight: 90,
-  },
-  letterSubtitle: { 
-    ...Typography.bodyBold,
-    color: Colors.white,
-    fontSize: 14,
+    textShadowColor: 'rgba(0,0,0,0.6)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
   },
   scrambleBanner: {
     backgroundColor: Colors.errorDim,
