@@ -112,6 +112,7 @@ const GameplayScreen: React.FC = () => {
       <View style={styles.header}>
         <Text style={styles.letterSubtitle}>Start every word with</Text>
         <Text style={styles.letterDisplay}>{letter}</Text>
+        <Text style={styles.letterSubtitle}>then press here to stop the bus</Text>
       </View>
 
       {/* Scramble warning banner */}
