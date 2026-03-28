@@ -203,7 +203,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     case 'SCRAMBLE_STARTED':
       return {
         ...state,
-        screen: 'SCRAMBLE',
+        screen: 'GAMEPLAY', // Stay on gameplay screen — scramble is an in-place overlay
         scrambleTimeRemaining: action.payload.duration,
         stopClickedBy: action.payload.stopClickedBy ?? state.stopClickedBy,
       };

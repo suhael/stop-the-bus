@@ -1,4 +1,4 @@
-import { RedisService } from "@stop-the-bus/shared/redis";
+import { RedisService, client } from "@stop-the-bus/shared/redis";
 import roundResults from "./roundResults.ts";
 
 // Event: Stop the Bus - Triggered when a player finishes all categories
@@ -43,24 +43,33 @@ const stopBus = (socket: any, io: any, roomScoringTimeouts: Map<string, any>) =>
         return;
       }
 
-      // 3. Immediately change status to SCRAMBLE
-      await RedisService.updateRoomStatus(roomId, "SCRAMBLE");
+      // 3. Cancel the active round timer so it doesn't fire after scramble starts
+      const existingTimer = roomScoringTimeouts.get(roomId);
+      if (existingTimer) {
+        clearTimeout(existingTimer);
+        roomScoringTimeouts.delete(roomId);
+      }
+
+      // 4. Immediately change status to SCRAMBLE and persist who stopped
+      await Promise.all([
+        RedisService.updateRoomStatus(roomId, "SCRAMBLE"),
+        client.hSet(`room:${roomId}`, "stopClickedBy", userId),
+      ]);
 
       console.log(
         `🛑 Player ${userId} stopped the bus! Room ${roomId} now in SCRAMBLE mode.`,
       );
 
 
-      // 4. Emit START_SCRAMBLE with 3-second duration to all players
+      // 5. Emit START_SCRAMBLE with 10-second duration to all players
       io.to(roomId).emit("START_SCRAMBLE", {
-        timeRemaining: 3,
+        timeRemaining: 10,
         stopClickedBy: userId,
       });
 
-      // 5. Set server-side timeout for 3.5 seconds to trigger scoring
+      // 6. Set server-side timeout for 10.5 seconds to trigger scoring
       // (Extra 0.5 seconds buffer to ensure all client messages arrive)
-      // CRITICAL: Store timeout in roomScoringTimeouts map, NOT on socket
-      // This ensures room progresses to scoring even if the STOP player disconnects
+      // Store timeout in room map (survives socket disconnect)
       const scoringTimeoutId = setTimeout(async () => {
         try {
           console.log(
@@ -86,7 +95,7 @@ const stopBus = (socket: any, io: any, roomScoringTimeouts: Map<string, any>) =>
           // Clean up the timeout reference from the map
           roomScoringTimeouts.delete(roomId);
         }
-      }, 3500);
+      }, 10500);
 
       // Store timeout in room map (survives socket disconnect)
       roomScoringTimeouts.set(roomId, scoringTimeoutId);

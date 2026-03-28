@@ -13,8 +13,8 @@ describe("Scoring Logic - calculateScores()", () => {
 
       // player1: 3 unique words (all start with A) = 30 points
       expect(scores.player1).toBe(30);
-      // player2: 3 unique words + 3 speed bonus = 33 points
-      expect(scores.player2).toBe(33);
+      // player2: 3 unique words + 15 speed bonus = 45 points
+      expect(scores.player2).toBe(45);
     });
 
     it("should award 5 points for shared words", () => {
@@ -25,8 +25,8 @@ describe("Scoring Logic - calculateScores()", () => {
 
       const scores = calculateScores(playerAnswers, "A", "player1");
 
-      // player1: 2 shared words (Alice, Albania) + 1 unique (Apple) + 3 speed bonus = 2*5 + 10 + 3 = 23 points
-      expect(scores.player1).toBe(23);
+      // player1: 2 shared words (Alice, Albania) + 1 unique (Apple) + 15 speed bonus = 2*5 + 10 + 15 = 35 points
+      expect(scores.player1).toBe(35);
       // player2: 2 shared words (Alice, Albania) + 1 unique (Apricot) = 2*5 + 10 = 20 points
       expect(scores.player2).toBe(20);
     });
@@ -55,8 +55,8 @@ describe("Scoring Logic - calculateScores()", () => {
 
       const scores = calculateScores(playerAnswers, "A", "player1");
 
-      // player1: Alice (shared, 5), Albania (shared, 5), Apple (shared, 5), Antelope (shared, 5) + speed bonus = 20 + 3 = 23
-      expect(scores.player1).toBe(23);
+      // player1: Alice (shared, 5), Albania (shared, 5), Apple (shared, 5), Antelope (shared, 5) + speed bonus = 20 + 15 = 35
+      expect(scores.player1).toBe(35);
       // player2: Alice (shared, 5), Argentina (unique, 10), Apple (shared, 5), Antelope (shared, 5) = 25
       expect(scores.player2).toBe(25);
       // player3: Albert (unique, 10), Albania (shared, 5), Apricot (unique, 10), Antelope (shared, 5) = 30
@@ -65,7 +65,7 @@ describe("Scoring Logic - calculateScores()", () => {
   });
 
   describe("Speed Bonus Application", () => {
-    it("should add 3 points to speed bonus winner", () => {
+    it("should add 15 points to speed bonus winner", () => {
       const playerAnswers = {
         player1: { Name: "Alice", Country: "Austria", Food: "Apple" },
         player2: { Name: "Albert", Country: "Argentina", Food: "Apricot" },
@@ -74,9 +74,9 @@ describe("Scoring Logic - calculateScores()", () => {
       const scoresWithBonus = calculateScores(playerAnswers, "A", "player1");
       const scoresWithoutBonus = calculateScores(playerAnswers, "A", "player2");
 
-      // player1 should have 3 more points when they're the bonus winner
-      expect(scoresWithBonus.player1).toBe(scoresWithoutBonus.player1 + 3);
-      expect(scoresWithoutBonus.player2).toBe(scoresWithBonus.player2 + 3);
+      // player1 should have 15 more points when they're the bonus winner
+      expect(scoresWithBonus.player1).toBe(scoresWithoutBonus.player1 + 15);
+      expect(scoresWithoutBonus.player2).toBe(scoresWithBonus.player2 + 15);
     });
 
     it("should only apply bonus to the speed winner", () => {
@@ -88,9 +88,9 @@ describe("Scoring Logic - calculateScores()", () => {
 
       const scores = calculateScores(playerAnswers, "A", "player2");
 
-      // Only player2 should have the +3 bonus
+      // Only player2 should have the +15 bonus
       expect(scores.player1).toBe(20); // 2 unique * 10
-      expect(scores.player2).toBe(23); // 2 unique * 10 + 3 bonus
+      expect(scores.player2).toBe(35); // 2 unique * 10 + 15 bonus
       expect(scores.player3).toBe(20); // 2 unique * 10
     });
   });
@@ -105,7 +105,7 @@ describe("Scoring Logic - calculateScores()", () => {
       const scores = calculateScores(playerAnswers, "A", "player2");
 
       expect(scores.player1).toBe(0);
-      expect(scores.player2).toBe(23); // 2 unique + 3 bonus
+      expect(scores.player2).toBe(35); // 2 unique + 15 bonus
     });
 
     it("should handle null/empty string answers", () => {
@@ -116,8 +116,8 @@ describe("Scoring Logic - calculateScores()", () => {
 
       const scores = calculateScores(playerAnswers, "A", "player1");
 
-      // player1: only Austria (shared, 5) + speed bonus = 8
-      expect(scores.player1).toBe(8);
+      // player1: only Austria (shared, 5) + speed bonus = 20
+      expect(scores.player1).toBe(20);
       // player2: Austria (shared, 5) + Alice (unique, 10) + Apple (unique, 10) = 25
       expect(scores.player2).toBe(25);
     });
@@ -130,8 +130,8 @@ describe("Scoring Logic - calculateScores()", () => {
 
       const scores = calculateScores(playerAnswers, "A", "player1");
 
-      // player1: only Austria (shared, 5) + speed bonus = 8
-      expect(scores.player1).toBe(8);
+      // player1: only Austria (shared, 5) + speed bonus = 20
+      expect(scores.player1).toBe(20);
       // player2: Alice (unique, 10) + Austria (shared, 5) = 15
       expect(scores.player2).toBe(15);
     });
@@ -145,8 +145,8 @@ describe("Scoring Logic - calculateScores()", () => {
       const scores = calculateScores(playerAnswers, "A", "player1");
 
       // Both should have matching shared words despite case differences
-      // player1: Alice (shared, 5) + austria (shared, 5) + speed bonus = 13
-      expect(scores.player1).toBe(13);
+      // player1: Alice (shared, 5) + austria (shared, 5) + speed bonus = 25
+      expect(scores.player1).toBe(25);
       // player2: alice (shared, 5) + AUSTRIA (shared, 5) = 10
       expect(scores.player2).toBe(10);
     });
@@ -160,8 +160,8 @@ describe("Scoring Logic - calculateScores()", () => {
 
       const scores = calculateScores(playerAnswers, "A", "player1");
 
-      // player1: 3 unique + speed bonus = 33
-      expect(scores.player1).toBe(33);
+      // player1: 3 unique + speed bonus = 45
+      expect(scores.player1).toBe(45);
       // player2: 2 unique = 20
       expect(scores.player2).toBe(20);
       // player3: null, should be 0
@@ -176,7 +176,7 @@ describe("Scoring Logic - calculateScores()", () => {
       const scores = calculateScores(playerAnswers, "A", "player1");
 
       // All words are unique (no one else to share with) + speed bonus
-      expect(scores.player1).toBe(33); // 3 * 10 + 3
+      expect(scores.player1).toBe(45); // 3 * 10 + 15
     });
 
     it("should handle all players having empty answers", () => {
@@ -188,7 +188,7 @@ describe("Scoring Logic - calculateScores()", () => {
 
       const scores = calculateScores(playerAnswers, "A", "player1");
 
-      expect(scores.player1).toBe(3); // Only speed bonus
+      expect(scores.player1).toBe(15); // Only speed bonus
       expect(scores.player2).toBe(0);
       expect(scores.player3).toBe(0);
     });
@@ -203,8 +203,8 @@ describe("Scoring Logic - calculateScores()", () => {
       const scores = calculateScores(playerAnswers, "A", "player1");
 
       // Each player: Ant (shared among 3, 5 pts) + 1 unique (10 pts)
-      // player1: 5 + 10 + speed bonus = 18
-      expect(scores.player1).toBe(18);
+      // player1: 5 + 10 + speed bonus = 30
+      expect(scores.player1).toBe(30);
       // player2: 5 + 10 = 15
       expect(scores.player2).toBe(15);
       // player3: 5 + 10 = 15
@@ -221,8 +221,8 @@ describe("Scoring Logic - calculateScores()", () => {
 
       const scores = calculateScores(playerAnswers, "A", "player1");
 
-      // player1: Alice (unique, 10) + Brazil (REJECTED, 0) + Apple (unique, 10) + speed bonus = 23
-      expect(scores.player1).toBe(23);
+      // player1: Alice (unique, 10) + Brazil (REJECTED, 0) + Apple (unique, 10) + speed bonus = 35
+      expect(scores.player1).toBe(35);
       // player2: Bob (REJECTED, 0) + Austria (unique, 10) + Bread (REJECTED, 0) = 10
       expect(scores.player2).toBe(10);
     });
@@ -237,8 +237,8 @@ describe("Scoring Logic - calculateScores()", () => {
 
       // Letter 'a' should match lowercase words (all are repeated)
       // Both players have identical words: alice (shared, 5) + austria (shared, 5)
-      // player1: 5 + 5 + speed bonus = 13
-      expect(scores.player1).toBe(13);
+      // player1: 5 + 5 + speed bonus = 25
+      expect(scores.player1).toBe(25);
       // player2: 5 + 5 = 10
       expect(scores.player2).toBe(10);
     });
@@ -259,8 +259,8 @@ describe("Scoring Logic - calculateScores()", () => {
 
       const scores = calculateScores(playerAnswers, "A", "player1");
 
-      // player1: Alice (unique, 10) + Belgium (REJECTED, 0) + Ant (unique, 10) + speed bonus = 23
-      expect(scores.player1).toBe(23);
+      // player1: Alice (unique, 10) + Belgium (REJECTED, 0) + Ant (unique, 10) + speed bonus = 35
+      expect(scores.player1).toBe(35);
       // player2: Austria (shared, 5) + Austria (shared, 5) + Bear (REJECTED, 0) = 10
       expect(scores.player2).toBe(10);
     });
@@ -283,9 +283,9 @@ describe("Scoring Logic - calculateScores()", () => {
 
       const scores = calculateScores(playerAnswers, "A", "player1");
 
-      // player1: Apple in Name (unique, 10) + Apple in Country (unique, 10) + Apple in Food (unique, 10) + speed bonus = 33
+      // player1: Apple in Name (unique, 10) + Apple in Country (unique, 10) + Apple in Food (unique, 10) + speed bonus = 45
       // Cross-category are scored independently, so Apple is unique in each category for player1
-      expect(scores.player1).toBe(33);
+      expect(scores.player1).toBe(45);
       // player2: Alice (unique, 10) + Austria (unique, 10) + Apricot (unique, 10) = 30
       expect(scores.player2).toBe(30);
     });

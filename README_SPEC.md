@@ -121,6 +121,16 @@ Points are calculated server-side after the scramble:
 - **Invalid/Empty:** 0 points.
 - _Note: Validation uses SQLite 'game.db' on the Mobile side, but the Server performs the final cross-reference check._
 
+Global Scoring: Points are calculated and awarded to every player in the lobby based on the validity of their submitted words, not just the player who stopped the bus.
+
+Base Points: \* 10 Points for a correct, unique entry (no other player submitted the same word).
+
+5 Points for a correct, non-unique entry (another player submitted the exact same word).
+
+0 Points for empty or invalid entries.
+
+Bus Stopper Bonus: The first player to successfully press "Stop the Bus" is awarded a flat +15 Bonus Points for that round, added to their base score. (No bonus is awarded if the round ends via the 3-minute timeout).
+
 ---
 
 ## 8. UI/UX States
@@ -129,6 +139,20 @@ Points are calculated server-side after the scramble:
 2. **The Ride (Gameplay):** 5 cards (Name, Country, Food, Animal, Brand).
 3. **The Scramble:** Full-screen 3-second emergency overlay.
 4. **The Ticket Reveal (Results):** Category-by-category reveal of all player answers.
+
+Default Round Timer: Each round begins with a background countdown of 3 minutes (180 seconds). A visible timer must be displayed at the top of the GameplayScreen.
+
+Triggering the End-Game: The round's end-game state can be triggered in two ways:
+
+The 3-minute timer naturally reaches 0.
+
+A player completely fills all their category inputs and clicks the "Stop the Bus" button.
+
+The Scramble Phase: When the end-game state is triggered, a Scramble Timer overrides the main timer, granting all players exactly 10 final seconds to finish typing.
+
+Non-Blocking UI: The Scramble phase must not navigate players away from the gameplay screen. It should update the existing UI (e.g., turning the timer red, displaying a warning banner) so players can still type until the clock hits 0.
+
+Hard Stop: Once the Scramble Timer hits 0, all inputs are disabled, and answers are submitted to the server.
 
 ---
 

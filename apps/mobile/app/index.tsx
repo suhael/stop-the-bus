@@ -5,7 +5,6 @@ import NicknameScreen from "@/src/screens/NicknameScreen";
 import HomeScreen from "@/src/screens/HomeScreen";
 import LobbyScreen from "@/src/screens/LobbyScreen";
 import GameplayScreen from "@/src/screens/GameplayScreen";
-import ScrambleScreen from "@/src/screens/ScrambleScreen";
 import ResultsScreen from "@/src/screens/ResultsScreen";
 import GameOverScreen from "@/src/screens/GameOverScreen";
 import StartScreen from "@/src/screens/StartScreen";
@@ -29,9 +28,8 @@ export default function Index() {
     case "LOBBY":
       return <LobbyScreen />;
     case "GAMEPLAY":
+    case "SCRAMBLE": // Scramble is now an in-place overlay on the gameplay screen
       return <GameplayScreen />;
-    case "SCRAMBLE":
-      return <ScrambleScreen />;
     case "RESULTS":
       return <ResultsScreen />;
     case "GAME_OVER":

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ScrollView,
   StyleSheet,
@@ -10,20 +10,56 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import CategoryInput from '@/src/components/CategoryInput';
 import { useGame } from '@/src/context/GameContext';
 import { useValidation } from '@/src/hooks/useValidation';
+import { useCountdown } from '@/src/hooks/useGameLoop';
 import { BorderRadius, Colors, Spacing, Typography } from '@/src/theme';
 
+const ROUND_DURATION = 180;
+
+const formatTime = (secs: number) => {
+  const m = Math.floor(secs / 60).toString().padStart(2, '0');
+  const s = (secs % 60).toString().padStart(2, '0');
+  return `${m}:${s}`;
+};
+
 const GameplayScreen: React.FC = () => {
-  const { state, setAnswer, stopBus } = useGame();
-  const { categories, letter, round, answers, userId, players } = state;
+  const { state, setAnswer, stopBus, submitWords } = useGame();
+  const { categories, letter, round, answers, userId, players, scrambleTimeRemaining, stopClickedBy } = state;
+
+  const isScrambling = scrambleTimeRemaining > 0;
+
+  // ── Round timer (visual only — server is the authority) ──────────────────
+  const [roundSeconds, setRoundSeconds] = useState(ROUND_DURATION);
+  useEffect(() => {
+    setRoundSeconds(ROUND_DURATION);
+  }, [round]);
+  useEffect(() => {
+    if (isScrambling || roundSeconds <= 0) return;
+    const id = setInterval(() => setRoundSeconds((s) => Math.max(0, s - 1)), 1000);
+    return () => clearInterval(id);
+  }, [roundSeconds, isScrambling]);
+
+  // ── Scramble countdown & auto-submit ────────────────────────────────────
+  const submittedRef = useRef(false);
+  useEffect(() => {
+    submittedRef.current = false;
+  }, [scrambleTimeRemaining]);
+  const handleScrambleComplete = useCallback(() => {
+    if (!submittedRef.current) {
+      submittedRef.current = true;
+      submitWords();
+    }
+  }, [submitWords]);
+  const { seconds: scrambleSeconds } = useCountdown(
+    scrambleTimeRemaining,
+    isScrambling,
+    handleScrambleComplete,
+  );
 
   const { validationState, validationErrors, validate, resetValidation } = useValidation(letter);
-
-  // Reset validation whenever the round/letter changes
   useEffect(() => {
     resetValidation();
   }, [round, letter, resetValidation]);
 
-  // All categories filled with a non-empty word = STOP button enabled
   const allFilled = useMemo(
     () =>
       categories.length > 0 &&
@@ -40,16 +76,46 @@ const GameplayScreen: React.FC = () => {
 
   const isHost = players.find((p) => p.playerId === userId)?.isDriver ?? false;
 
+  const stopper = players.find((p) => p.playerId === stopClickedBy);
+  const stopperName = stopper ? stopper.nickname : 'Someone';
+  const isYouStopped = stopClickedBy === userId;
+
+  const timerIsUrgent = !isScrambling && roundSeconds <= 30;
+  const timerColor = isScrambling
+    ? Colors.error
+    : timerIsUrgent
+    ? Colors.warning
+    : Colors.primary;
+
   return (
     <SafeAreaView style={styles.safe}>
       {/* Round / Letter header */}
       <View style={styles.header}>
-        <View style={styles.roundBadge}>
-          <Text style={styles.roundText}>Round {round}</Text>
+        <View style={styles.topRow}>
+          <View style={styles.roundBadge}>
+            <Text style={styles.roundText}>Round {round}</Text>
+          </View>
+          <View style={[styles.timerBadge, isScrambling && styles.timerBadgeScramble, timerIsUrgent && styles.timerBadgeUrgent]}>
+            <Text style={[styles.timerText, { color: timerColor }]}>
+              {isScrambling ? `⚡ ${scrambleSeconds}s` : formatTime(roundSeconds)}
+            </Text>
+          </View>
         </View>
         <Text style={styles.letterDisplay}>{letter}</Text>
         <Text style={styles.letterSubtitle}>Start every word with</Text>
       </View>
+
+      {/* Scramble warning banner */}
+      {isScrambling && (
+        <View style={styles.scrambleBanner}>
+          <Text style={styles.scrambleBannerText}>
+            🛑{' '}
+            {isYouStopped
+              ? 'You stopped the bus! Finalise your answers!'
+              : `${stopperName} stopped the bus! Finish up fast!`}
+          </Text>
+        </View>
+      )}
 
       {/* Category inputs */}
       <ScrollView
@@ -69,26 +135,35 @@ const GameplayScreen: React.FC = () => {
             errorMessage={validationErrors[cat]}
             onChangeText={(text) => setAnswer(cat, text)}
             onBlur={() => handleBlur(cat)}
+            disabled={isScrambling}
           />
         ))}
       </ScrollView>
 
-      {/* Stop the Bus button */}
+      {/* Stop the Bus button / scramble hint */}
       <View style={styles.footer}>
-        {!allFilled && (
-          <Text style={styles.hint}>Fill all categories to stop the bus</Text>
-        )}
-        <TouchableOpacity
-          style={[styles.stopButton, !allFilled && styles.stopButtonDisabled]}
-          onPress={stopBus}
-          disabled={!allFilled}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.stopButtonText}>🛑 Stop the Bus!</Text>
-        </TouchableOpacity>
+        {isScrambling ? (
+          <Text style={styles.scrambleHint}>
+            ⏳ Your answers will be submitted automatically…
+          </Text>
+        ) : (
+          <>
+            {!allFilled && (
+              <Text style={styles.hint}>Fill all categories to stop the bus</Text>
+            )}
+            <TouchableOpacity
+              style={[styles.stopButton, !allFilled && styles.stopButtonDisabled]}
+              onPress={stopBus}
+              disabled={!allFilled}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.stopButtonText}>🛑 Stop the Bus!</Text>
+            </TouchableOpacity>
 
-        {isHost && (
-          <Text style={styles.hostNote}>You're the driver 🚌</Text>
+            {isHost && (
+              <Text style={styles.hostNote}>You're the driver 🚌</Text>
+            )}
+          </>
         )}
       </View>
     </SafeAreaView>
@@ -98,7 +173,6 @@ const GameplayScreen: React.FC = () => {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.background },
   header: {
-    alignItems: 'center',
     paddingTop: Spacing.lg,
     paddingBottom: Spacing.md,
     paddingHorizontal: Spacing.lg,
@@ -106,6 +180,13 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
     gap: Spacing.xs,
+    alignItems: 'center',
+  },
+  topRow: {
+    flexDirection: 'row',
+    width: '100%',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   roundBadge: {
     backgroundColor: Colors.surfaceLight,
@@ -114,6 +195,26 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.xs,
   },
   roundText: { ...Typography.label },
+  timerBadge: {
+    backgroundColor: Colors.surfaceLight,
+    borderRadius: BorderRadius.full,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  timerBadgeUrgent: {
+    borderColor: Colors.warning,
+    backgroundColor: Colors.warningDim ?? Colors.surfaceLight,
+  },
+  timerBadgeScramble: {
+    borderColor: Colors.error,
+    backgroundColor: Colors.errorDim,
+  },
+  timerText: {
+    ...Typography.label,
+    fontVariant: ['tabular-nums'],
+  },
   letterDisplay: {
     fontSize: 80,
     fontWeight: '900',
@@ -121,6 +222,18 @@ const styles = StyleSheet.create({
     lineHeight: 90,
   },
   letterSubtitle: { ...Typography.caption },
+  scrambleBanner: {
+    backgroundColor: Colors.errorDim,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.error,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+  },
+  scrambleBannerText: {
+    ...Typography.bodyBold,
+    color: Colors.error,
+    textAlign: 'center',
+  },
   scroll: { flex: 1 },
   scrollContent: {
     paddingHorizontal: Spacing.lg,
@@ -137,6 +250,13 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   hint: { ...Typography.caption, textAlign: 'center', color: Colors.textMuted },
+  scrambleHint: {
+    ...Typography.body,
+    textAlign: 'center',
+    color: Colors.textMuted,
+    fontStyle: 'italic',
+    paddingVertical: Spacing.md,
+  },
   stopButton: {
     backgroundColor: Colors.primary,
     borderRadius: BorderRadius.lg,

@@ -84,7 +84,7 @@ export const calculateScores = (
     }
     // Apply speed bonus if this player clicked STOP
     if (playerId === speedBonusWinnerId) {
-      playerScore += 3;
+      playerScore += 15;
     }
     scores[playerId] = playerScore;
   }

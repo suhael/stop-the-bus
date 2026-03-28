@@ -7,6 +7,9 @@ import {
   GameAlreadyInProgressError,
 } from "@stop-the-bus/shared/errors";
 import { getCategories } from "@stop-the-bus/shared/logic/dictionary";
+import roundResults from "./roundResults.ts";
+
+const ROUND_DURATION_SECONDS = 180;
 
 // Generate a random letter that hasn't been used in this game yet
 const getRandomUnusedLetter = async (roomId: string): Promise<string> => {
@@ -35,7 +38,7 @@ const getRandomUnusedLetter = async (roomId: string): Promise<string> => {
 };
 
 // Event: Start the Game (Host only)
-const startGame = (socket: any, io: any) => {
+const startGame = (socket: any, io: any, roomScoringTimeouts: Map<string, any>) => {
   return async () => {
     try {
       const roomId = socket.currentRoom;
@@ -91,6 +94,7 @@ const startGame = (socket: any, io: any) => {
       const transaction = client.multi();
       transaction.hSet(`room:${roomId}`, "status", "PLAYING");
       transaction.hSet(`room:${roomId}`, "letter", letter);
+      transaction.hSet(`room:${roomId}`, "stopClickedBy", "");
       if (roomStatus === "RESULTS_SHOWN") {
         transaction.hSet(`room:${roomId}`, "round", currentRound.toString());
       }
@@ -105,7 +109,60 @@ const startGame = (socket: any, io: any) => {
         letter,
         round: currentRound,
         categories: getCategories(),
+        roundDuration: ROUND_DURATION_SECONDS,
       });
+
+      // 8. Start the round timer — if it fires before STOP_CLICKED, trigger scramble automatically
+      const existingTimer = roomScoringTimeouts.get(roomId);
+      if (existingTimer) {
+        clearTimeout(existingTimer);
+      }
+
+      const roundTimerId = setTimeout(async () => {
+        try {
+          const roomStatus = await RedisService.getRoomStatus(roomId);
+          if (roomStatus !== "PLAYING") return; // Already in scramble/scoring
+
+          console.log(
+            `⏰ Round timer expired for room ${roomId}. Triggering scramble (no bus stopper bonus).`,
+          );
+
+          await RedisService.updateRoomStatus(roomId, "SCRAMBLE");
+
+          io.to(roomId).emit("START_SCRAMBLE", {
+            timeRemaining: 10,
+            stopClickedBy: null,
+          });
+
+          const scrambleTimerId = setTimeout(async () => {
+            try {
+              await RedisService.updateRoomStatus(roomId, "SCORING");
+              io.to(roomId).emit("SCORING_PHASE_BEGIN", { timestamp: Date.now() });
+              await roundResults(io)(roomId);
+            } catch (err) {
+              console.error(
+                `❌ Scoring error after round timeout (${roomId}):`,
+                (err as any).message,
+              );
+            } finally {
+              roomScoringTimeouts.delete(roomId);
+            }
+          }, 10500);
+
+          roomScoringTimeouts.set(roomId, scrambleTimerId);
+        } catch (err) {
+          console.error(
+            `❌ Round timer error (${roomId}):`,
+            (err as any).message,
+          );
+          roomScoringTimeouts.delete(roomId);
+        }
+      }, ROUND_DURATION_SECONDS * 1000);
+
+      roomScoringTimeouts.set(roomId, roundTimerId);
+      console.log(
+        `⏱️  Round timer started for room ${roomId} (${ROUND_DURATION_SECONDS}s).`,
+      );
     } catch (err: any) {
       console.error("🚨 Start Game Error:", {
         userId: socket.currentUserId,

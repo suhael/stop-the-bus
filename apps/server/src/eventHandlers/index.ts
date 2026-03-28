@@ -31,7 +31,7 @@ const registerSocketHandlers = (io: any) => {
       "LEAVE_ROOM",
       leaveRoom(socket, io, pendingDisconnects, userSocketMap),
     );
-    socket.on("START_GAME", startGame(socket, io));
+    socket.on("START_GAME", startGame(socket, io, roomScoringTimeouts));
     socket.on("STOP_CLICKED", stopBus(socket, io, roomScoringTimeouts));
     socket.on("SUBMIT_WORDS", submitWords(socket, io, roomScoringTimeouts));
     socket.on(
