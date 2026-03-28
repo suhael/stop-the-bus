@@ -1,5 +1,5 @@
 import { Server, Socket } from "socket.io";
-import { RedisService } from "@stop-the-bus/shared/redis";
+import { RedisService, client } from "@stop-the-bus/shared/redis";
 import {
   validateUserId,
   validateNickname,
@@ -107,6 +107,8 @@ export const joinRoom = (
       if (isReturningPlayer && (status === "PLAYING" || status === "SCRAMBLE")) {
         const round = await RedisService.getRound(roomId);
         const letter = await RedisService.getLetter(roomId);
+        const roomData = await client.hGetAll(`room:${roomId}`);
+        const roundEndTime = roomData.roundEndTime ? parseInt(roomData.roundEndTime, 10) : null;
 
         socket.emit("GAME_REJOINED", {
           roomCode,
@@ -115,7 +117,8 @@ export const joinRoom = (
           categories,
           round,
           letter,
-          status, // lets the client jump straight to SCRAMBLE if needed
+          status,
+          roundEndTime,
         });
       } else {
         // Normal path: fresh join while in the lobby

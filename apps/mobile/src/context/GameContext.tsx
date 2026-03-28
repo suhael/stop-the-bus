@@ -72,6 +72,7 @@ interface GameState {
   gameOverData: GameOverData | null;
   scrambleTimeRemaining: number;
   stopClickedBy: string | null;
+  roundEndTime: number | null;
 }
 
 // ─── Initial State & Reducer ──────────────────────────────────────────────────
@@ -95,6 +96,7 @@ const initialState: GameState = {
   gameOverData: null,
   scrambleTimeRemaining: 0,
   stopClickedBy: null,
+  roundEndTime: null,
 };
 
 type GameAction =
@@ -110,7 +112,7 @@ type GameAction =
     }
   | { type: 'PASSENGER_JOINED'; payload: Player & { categories?: string[] } }
   | { type: 'PASSENGER_LEFT'; payload: { playerId: string; newHostId?: string } }
-  | { type: 'GAME_STARTED'; payload: { round: number; letter: string } }
+  | { type: 'GAME_STARTED'; payload: { round: number; letter: string; roundEndTime?: number | null } }
   | { type: 'SCRAMBLE_STARTED'; payload: { duration: number; stopClickedBy?: string | null } }
   | { type: 'SCRAMBLE_TICK'; payload: number }
   | { type: 'ROUND_RESULTS'; payload: RoundResult }
@@ -199,6 +201,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         gameOverData: null,
         nextRound: null,
         stopClickedBy: null,
+        roundEndTime: action.payload.roundEndTime ?? null,
       };
     case 'SCRAMBLE_STARTED':
       return {
@@ -375,7 +378,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         },
       });
       // Then immediately jump to the right in-game screen
-      dispatch({ type: 'GAME_STARTED', payload: { round: data.round, letter: data.letter } });
+      dispatch({ type: 'GAME_STARTED', payload: { round: data.round, letter: data.letter, roundEndTime: data.roundEndTime ?? null } });
       if (data.status === 'SCRAMBLE') {
         dispatch({
           type: 'SCRAMBLE_STARTED',
@@ -386,7 +389,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const onPassengerJoined = (data: any) => dispatch({ type: 'PASSENGER_JOINED', payload: data });
     const onPassengerLeft = (data: any) => dispatch({ type: 'PASSENGER_LEFT', payload: data });
-    const onGameStarted = (data: any) => dispatch({ type: 'GAME_STARTED', payload: data });
+    const onGameStarted = (data: any) => dispatch({ type: 'GAME_STARTED', payload: { round: data.round, letter: data.letter, roundEndTime: data.roundEndTime ?? null } });
     const onScrambleStarted = (data: any) =>
       dispatch({
         type: 'SCRAMBLE_STARTED',

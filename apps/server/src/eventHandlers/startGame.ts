@@ -91,10 +91,12 @@ const startGame = (socket: any, io: any, roomScoringTimeouts: Map<string, any>) 
       const letter = await getRandomUnusedLetter(roomId);
 
       // 6. Update room status and letter atomically using a transaction
+      const roundEndTime = Date.now() + ROUND_DURATION_SECONDS * 1000;
       const transaction = client.multi();
       transaction.hSet(`room:${roomId}`, "status", "PLAYING");
       transaction.hSet(`room:${roomId}`, "letter", letter);
       transaction.hSet(`room:${roomId}`, "stopClickedBy", "");
+      transaction.hSet(`room:${roomId}`, "roundEndTime", roundEndTime.toString());
       if (roomStatus === "RESULTS_SHOWN") {
         transaction.hSet(`room:${roomId}`, "round", currentRound.toString());
       }
@@ -109,7 +111,7 @@ const startGame = (socket: any, io: any, roomScoringTimeouts: Map<string, any>) 
         letter,
         round: currentRound,
         categories: getCategories(),
-        roundDuration: ROUND_DURATION_SECONDS,
+        roundEndTime,
       });
 
       // 8. Start the round timer — if it fires before STOP_CLICKED, trigger scramble automatically
@@ -147,7 +149,7 @@ const startGame = (socket: any, io: any, roomScoringTimeouts: Map<string, any>) 
             } finally {
               roomScoringTimeouts.delete(roomId);
             }
-          }, 10500);
+          }, 13000);
 
           roomScoringTimeouts.set(roomId, scrambleTimerId);
         } catch (err) {

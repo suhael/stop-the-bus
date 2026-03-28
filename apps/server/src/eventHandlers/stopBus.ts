@@ -67,8 +67,8 @@ const stopBus = (socket: any, io: any, roomScoringTimeouts: Map<string, any>) =>
         stopClickedBy: userId,
       });
 
-      // 6. Set server-side timeout for 10.5 seconds to trigger scoring
-      // (Extra 0.5 seconds buffer to ensure all client messages arrive)
+      // 6. Set server-side timeout for 13 seconds to trigger scoring
+      // (3s grace period beyond the 10s scramble for mobile network latency)
       // Store timeout in room map (survives socket disconnect)
       const scoringTimeoutId = setTimeout(async () => {
         try {
@@ -95,7 +95,7 @@ const stopBus = (socket: any, io: any, roomScoringTimeouts: Map<string, any>) =>
           // Clean up the timeout reference from the map
           roomScoringTimeouts.delete(roomId);
         }
-      }, 10500);
+      }, 13000);
 
       // Store timeout in room map (survives socket disconnect)
       roomScoringTimeouts.set(roomId, scoringTimeoutId);

@@ -23,32 +23,42 @@ const formatTime = (secs: number) => {
 
 const GameplayScreen: React.FC = () => {
   const { state, setAnswer, stopBus, submitWords } = useGame();
-  const { categories, letter, round, answers, userId, players, scrambleTimeRemaining, stopClickedBy } = state;
+  const { categories, letter, round, answers, userId, players, scrambleTimeRemaining, stopClickedBy, roundEndTime } = state;
 
   const isScrambling = scrambleTimeRemaining > 0;
 
-  // ── Round timer (visual only — server is the authority) ──────────────────
-  const [roundSeconds, setRoundSeconds] = useState(ROUND_DURATION);
+  // ── Round timer — synced to server's absolute roundEndTime ───────────────
+  const [roundSeconds, setRoundSeconds] = useState(() =>
+    roundEndTime ? Math.max(0, Math.round((roundEndTime - Date.now()) / 1000)) : ROUND_DURATION
+  );
   useEffect(() => {
-    setRoundSeconds(ROUND_DURATION);
-  }, [round]);
+    // Reset immediately when a new round starts
+    setRoundSeconds(
+      roundEndTime ? Math.max(0, Math.round((roundEndTime - Date.now()) / 1000)) : ROUND_DURATION
+    );
+  }, [round, roundEndTime]);
   useEffect(() => {
     if (isScrambling || roundSeconds <= 0) return;
-    const id = setInterval(() => setRoundSeconds((s) => Math.max(0, s - 1)), 1000);
+    const id = setInterval(() => {
+      if (roundEndTime) {
+        // Recalculate from the absolute timestamp on each tick — stays in sync after reconnects
+        setRoundSeconds(Math.max(0, Math.round((roundEndTime - Date.now()) / 1000)));
+      } else {
+        setRoundSeconds((s) => Math.max(0, s - 1));
+      }
+    }, 1000);
     return () => clearInterval(id);
-  }, [roundSeconds, isScrambling]);
+  }, [roundSeconds, isScrambling, roundEndTime]);
 
   // ── Scramble countdown & auto-submit ────────────────────────────────────
-  const submittedRef = useRef(false);
-  useEffect(() => {
-    submittedRef.current = false;
-  }, [scrambleTimeRemaining]);
+  // Guard is keyed by round number — resets automatically on each new round
+  const submittedRoundRef = useRef<number | null>(null);
   const handleScrambleComplete = useCallback(() => {
-    if (!submittedRef.current) {
-      submittedRef.current = true;
+    if (submittedRoundRef.current !== round) {
+      submittedRoundRef.current = round;
       submitWords();
     }
-  }, [submitWords]);
+  }, [submitWords, round]);
   const { seconds: scrambleSeconds } = useCountdown(
     scrambleTimeRemaining,
     isScrambling,
@@ -205,7 +215,7 @@ const styles = StyleSheet.create({
   },
   timerBadgeUrgent: {
     borderColor: Colors.warning,
-    backgroundColor: Colors.warningDim ?? Colors.surfaceLight,
+    backgroundColor: Colors.surfaceLight,
   },
   timerBadgeScramble: {
     borderColor: Colors.error,
