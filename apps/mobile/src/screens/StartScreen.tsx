@@ -31,6 +31,14 @@ const StartScreen: React.FC = () => {
           >
             <Text style={styles.buttonText}>Start Game</Text>
           </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.secondaryButton}
+            onPress={() => router.push('/how-to-play')}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.secondaryButtonText}>How to Play</Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     </ImageBackground>
@@ -71,6 +79,7 @@ const styles = StyleSheet.create({
   footer: {
     paddingHorizontal: Spacing.xl,
     paddingBottom: Spacing.lg,
+    gap: Spacing.sm,
   },
   button: {
     width: '100%',
@@ -83,6 +92,19 @@ const styles = StyleSheet.create({
     ...Typography.bodyBold,
     color: Colors.buttonText,
     fontSize: 20,
+  },
+  secondaryButton: {
+    width: '100%',
+    borderRadius: BorderRadius.lg,
+    paddingVertical: Spacing.md,
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.6)',
+  },
+  secondaryButtonText: {
+    ...Typography.bodyBold,
+    color: Colors.white,
+    fontSize: 18,
   },
 });
 

@@ -202,6 +202,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         nextRound: null,
         stopClickedBy: null,
         roundEndTime: action.payload.roundEndTime ?? null,
+        scrambleTimeRemaining: 0, // Reset so isScrambling is false at the start of every round
       };
     case 'SCRAMBLE_STARTED':
       return {

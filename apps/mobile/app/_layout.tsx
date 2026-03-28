@@ -1,17 +1,55 @@
 // apps/mobile/app/_layout.tsx
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { View } from "react-native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { SafeAreaProvider } from "react-native-safe-area-context";
+import {
+  SafeAreaInsetsContext,
+  SafeAreaProvider,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 
-import { GameProvider } from "@/src/context/GameContext";
+import { GameProvider, useGame } from "@/src/context/GameContext";
 import { ENV, ENV_ERRORS } from "@/src/config/env";
 import EnvErrorScreen from "@/src/screens/EnvErrorScreen";
 import DatabaseErrorScreen from "@/src/screens/DatabaseErrorScreen";
 import { Colors } from "@/src/theme";
 import { initDatabase } from "@/src/db/dictionary";
+import GameHUD, { HUD_HEIGHT } from "@/src/components/GameHUD";
+
+// ─── Screens that show the HUD ────────────────────────────────────────────────
+const HUD_SCREENS = new Set(['HOME', 'LOBBY', 'GAMEPLAY', 'SCRAMBLE', 'RESULTS']);
+
+/**
+ * AppShell sits inside GameProvider so it can read game state.
+ *
+ * When the HUD is visible it:
+ *  1. Renders <GameHUD /> in normal flow (above the Stack).
+ *  2. Overrides SafeAreaInsetsContext for all Stack children so their
+ *     SafeAreaView automatically adds HUD_HEIGHT to the top inset —
+ *     no changes needed in individual screen files.
+ *
+ * GameHUD itself renders *before* the override provider and therefore
+ * consumes the real insets from the root SafeAreaProvider.
+ */
+function AppShell({ children }: { children: ReactNode }) {
+  const { state } = useGame();
+  const insets = useSafeAreaInsets();
+  const showHUD = HUD_SCREENS.has(state.screen);
+
+  return (
+    <View style={{ flex: 1 }}>
+      {showHUD && <GameHUD />}
+      <SafeAreaInsetsContext.Provider
+        value={showHUD ? { ...insets, top: insets.top + HUD_HEIGHT } : insets}
+      >
+        <View style={{ flex: 1 }}>{children}</View>
+      </SafeAreaInsetsContext.Provider>
+    </View>
+  );
+}
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -78,17 +116,23 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <GameProvider>
           <StatusBar style="dark" backgroundColor={Colors.background} />
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="index" />
-            <Stack.Screen
-              name="nickname"
-              options={{ presentation: 'modal', headerShown: false }}
-            />
-            <Stack.Screen
-              name="join"
-              options={{ presentation: 'modal', headerShown: false }}
-            />
-          </Stack>
+          <AppShell>
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="index" />
+              <Stack.Screen
+                name="nickname"
+                options={{ presentation: 'modal', headerShown: false }}
+              />
+              <Stack.Screen
+                name="join"
+                options={{ presentation: 'modal', headerShown: false }}
+              />
+              <Stack.Screen
+                name="how-to-play"
+                options={{ presentation: 'modal', headerShown: false }}
+              />
+            </Stack>
+          </AppShell>
         </GameProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

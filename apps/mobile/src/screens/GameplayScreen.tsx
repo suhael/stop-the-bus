@@ -145,7 +145,6 @@ const GameplayScreen: React.FC = () => {
             errorMessage={validationErrors[cat]}
             onChangeText={(text) => setAnswer(cat, text)}
             onBlur={() => handleBlur(cat)}
-            disabled={isScrambling}
           />
         ))}
       </ScrollView>
