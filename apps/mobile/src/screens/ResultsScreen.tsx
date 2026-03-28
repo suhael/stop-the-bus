@@ -33,7 +33,7 @@ const ResultsScreen: React.FC = () => {
   const { round, letter, scores, leaderboard, playerAnswers } = roundResult;
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['bottom', 'left', 'right']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>

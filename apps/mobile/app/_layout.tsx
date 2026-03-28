@@ -36,16 +36,32 @@ const HUD_SCREENS = new Set(['HOME', 'LOBBY', 'GAMEPLAY', 'SCRAMBLE', 'RESULTS']
  */
 function AppShell({ children }: { children: ReactNode }) {
   const { state } = useGame();
-  const insets = useSafeAreaInsets();
+  const insets = useSafeAreaInsets(); // real insets — must read before context override
   const showHUD = HUD_SCREENS.has(state.screen);
+  // On HOME the HUD floats transparently over the splash image (edge-to-edge)
+  const isTransparentHUD = state.screen === 'HOME';
 
   return (
     <View style={{ flex: 1 }}>
-      {showHUD && <GameHUD />}
+      {/* Solid HUD for non-home screens — rendered in normal flow so it takes up space */}
+      {showHUD && !isTransparentHUD && <GameHUD topInset={insets.top} />}
+
+      {/*
+       * Override top inset for all screen children so their SafeAreaView
+       * automatically accounts for the HUD height.
+       * We apply the override even in transparent-HUD mode so HomeScreen
+       * content is still pushed below the HUD.
+       */}
       <SafeAreaInsetsContext.Provider
         value={showHUD ? { ...insets, top: insets.top + HUD_HEIGHT } : insets}
       >
-        <View style={{ flex: 1 }}>{children}</View>
+        <View style={{ flex: 1 }}>
+          {children}
+          {/* Transparent HUD is an absolute overlay — rendered after children so it paints on top */}
+          {showHUD && isTransparentHUD && (
+            <GameHUD transparent topInset={insets.top} />
+          )}
+        </View>
       </SafeAreaInsetsContext.Provider>
     </View>
   );

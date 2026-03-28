@@ -8,18 +8,16 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useGame } from '@/src/context/GameContext';
 import { BorderRadius, Colors, Spacing, Typography } from '@/src/theme';
+import { HUD_HEIGHT } from '../components/GameHUD';
 
 const HomeScreen: React.FC = () => {
   const { state, createRoom } = useGame();
 
-  const { pendingJoin, error, nickname, isConnected } = state;
-
-  const handleChangeNickname = () => {
-    router.push('/nickname');
-  };
+  const { pendingJoin, error } = state;
 
   return (
     <ImageBackground
@@ -27,26 +25,14 @@ const HomeScreen: React.FC = () => {
       style={styles.background}
       resizeMode="cover"
     >
+      {/* Translucent status bar so the image bleeds behind the system clock row */}
+      <StatusBar style="light" translucent backgroundColor="transparent" />
+
+      {/* SafeAreaView includes top so content starts below the transparent HUD overlay.
+          AppShell has already added HUD_HEIGHT to the top inset via SafeAreaInsetsContext. */}
       <SafeAreaView style={styles.safe}>
         <View style={styles.content}>
-            <Text style={styles.title}>Stop the Bus</Text>
-            <View style={styles.playerRow}>
-              <Text style={styles.playerName}>Hey, {nickname}!</Text>
-              <TouchableOpacity onPress={handleChangeNickname}>
-                <Text style={styles.changeLink}>Change</Text>
-              </TouchableOpacity>
-            </View>
-            <View style={styles.connectionDot}>
-              <View
-                style={[
-                  styles.dot,
-                  { backgroundColor: isConnected ? Colors.success : Colors.error },
-                ]}
-              />
-              <Text style={styles.connectionText}>
-                {isConnected ? 'Connected' : 'Disconnected'}
-              </Text>
-            </View>
+          <Text style={styles.title}>Stop the Bus</Text>
         </View>
         <View style={styles.footer}>
           {/* Error */}
@@ -89,29 +75,10 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     paddingHorizontal: Spacing.xl,
-    paddingTop: Spacing.xl,
+    paddingTop: Spacing.md + HUD_HEIGHT,
     gap: Spacing.sm,
   },
   title: { ...Typography.heading1, textAlign: 'center', color: Colors.white },
-  playerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  playerName: { ...Typography.body, color: 'rgba(255,255,255,0.85)' },
-  changeLink: { ...Typography.caption, color: Colors.white, textDecorationLine: 'underline' },
-  connectionDot: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: Spacing.xs,
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  connectionText: { ...Typography.caption, color: 'rgba(255,255,255,0.7)' },
   errorBanner: {
     backgroundColor: Colors.errorDim,
     borderRadius: BorderRadius.md,
@@ -123,7 +90,7 @@ const styles = StyleSheet.create({
   footer: {
     paddingHorizontal: Spacing.xl,
     paddingBottom: Spacing.lg,
-    gap: Spacing.md
+    gap: Spacing.md,
   },
   primaryButton: {
     backgroundColor: Colors.primary,

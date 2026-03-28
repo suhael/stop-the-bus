@@ -9,7 +9,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import PlayerCard from '@/src/components/PlayerCard';
-import LeaveRoomButton from '@/src/components/LeaveRoomButton';
 import WaitingBanner from '@/src/components/WaitingBanner';
 import { useGame } from '@/src/context/GameContext';
 import { BorderRadius, Colors, Spacing, Typography } from '@/src/theme';
@@ -28,7 +27,7 @@ const LobbyScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['bottom', 'left', 'right']}>
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
@@ -87,7 +86,6 @@ const LobbyScreen: React.FC = () => {
             <WaitingBanner />
           )}
 
-          <LeaveRoomButton onPress={leaveRoom} />
         </View>
       </View>
     </SafeAreaView>
@@ -96,7 +94,11 @@ const LobbyScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.background },
-  container: { flex: 1, paddingHorizontal: Spacing.lg, paddingTop: Spacing.lg },
+  container: { 
+    flex: 1, 
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.md,
+  },
   header: {
     alignItems: 'center',
     marginBottom: Spacing.lg,

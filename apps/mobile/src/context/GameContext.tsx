@@ -16,6 +16,7 @@ import {
   setLastRoomCode,
   setNickname as persistNickname,
   setUserId,
+  clearSession,
 } from '@/src/utils/storage';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -120,7 +121,8 @@ type GameAction =
   | { type: 'GAME_OVER'; payload: GameOverData }
   | { type: 'SET_ANSWER'; payload: { category: string; word: string } }
   | { type: 'SET_ERROR'; payload: string | null }
-  | { type: 'RESET_GAME' };
+  | { type: 'RESET_GAME' }
+  | { type: 'QUIT_TO_START' };
 
 function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
@@ -234,6 +236,13 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         isConnected: state.isConnected,
         screen: 'HOME',
       };
+    case 'QUIT_TO_START':
+      return {
+        ...initialState,
+        userId: state.userId,
+        isConnected: state.isConnected,
+        screen: 'STARTGAME',
+      };
     default:
       return state;
   }
@@ -254,6 +263,7 @@ interface GameContextProps {
   setNicknameAndProceed: (nickname: string) => Promise<void>;
   changeNickname: () => void;
   resetGame: () => void;
+  quitToStart: () => Promise<void>;
 }
 
 const GameContext = createContext<GameContextProps | undefined>(undefined);
@@ -497,6 +507,12 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     dispatch({ type: 'RESET_GAME' });
   }, []);
 
+  const quitToStart = useCallback(async () => {
+    await clearSession();
+    getSocket().emit('LEAVE_ROOM');
+    dispatch({ type: 'QUIT_TO_START' });
+  }, []);
+
   return (
     <GameContext.Provider
       value={{
@@ -512,6 +528,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setNicknameAndProceed,
         changeNickname,
         resetGame,
+        quitToStart,
       }}
     >
       {children}

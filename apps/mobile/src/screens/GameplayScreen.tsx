@@ -3,11 +3,11 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import CategoryInput from '@/src/components/CategoryInput';
+import GameActionBar from '@/src/components/GameActionBar';
 import { useGame } from '@/src/context/GameContext';
 import { useValidation } from '@/src/hooks/useValidation';
 import { useCountdown } from '@/src/hooks/useGameLoop';
@@ -84,8 +84,6 @@ const GameplayScreen: React.FC = () => {
     [validate, answers],
   );
 
-  const isHost = players.find((p) => p.playerId === userId)?.isDriver ?? false;
-
   const stopper = players.find((p) => p.playerId === stopClickedBy);
   const stopperName = stopper ? stopper.nickname : 'Someone';
   const isYouStopped = stopClickedBy === userId;
@@ -98,21 +96,11 @@ const GameplayScreen: React.FC = () => {
     : Colors.primary;
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['bottom', 'left', 'right']}>
       {/* Round / Letter header */}
       <View style={styles.header}>
-        <View style={styles.topRow}>
-          <View style={styles.roundBadge}>
-            <Text style={styles.roundText}>Round {round}</Text>
-          </View>
-          <View style={[styles.timerBadge, isScrambling && styles.timerBadgeScramble, timerIsUrgent && styles.timerBadgeUrgent]}>
-            <Text style={[styles.timerText, { color: timerColor }]}>
-              {isScrambling ? `⚡ ${scrambleSeconds}s` : formatTime(roundSeconds)}
-            </Text>
-          </View>
-        </View>
-        <Text style={styles.letterDisplay}>{letter}</Text>
         <Text style={styles.letterSubtitle}>Start every word with</Text>
+        <Text style={styles.letterDisplay}>{letter}</Text>
       </View>
 
       {/* Scramble warning banner */}
@@ -149,32 +137,13 @@ const GameplayScreen: React.FC = () => {
         ))}
       </ScrollView>
 
-      {/* Stop the Bus button / scramble hint */}
-      <View style={styles.footer}>
-        {isScrambling ? (
-          <Text style={styles.scrambleHint}>
-            ⏳ Your answers will be submitted automatically…
-          </Text>
-        ) : (
-          <>
-            {!allFilled && (
-              <Text style={styles.hint}>Fill all categories to stop the bus</Text>
-            )}
-            <TouchableOpacity
-              style={[styles.stopButton, !allFilled && styles.stopButtonDisabled]}
-              onPress={stopBus}
-              disabled={!allFilled}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.stopButtonText}>🛑 Stop the Bus!</Text>
-            </TouchableOpacity>
-
-            {isHost && (
-              <Text style={styles.hostNote}>You're the driver 🚌</Text>
-            )}
-          </>
-        )}
-      </View>
+      {/* Bottom action bar — replaces the old footer */}
+      <GameActionBar
+        round={round}
+        allFilled={allFilled}
+        isScrambling={isScrambling}
+        onStopBus={stopBus}
+      />
     </SafeAreaView>
   );
 };
@@ -182,7 +151,7 @@ const GameplayScreen: React.FC = () => {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.background },
   header: {
-    paddingTop: Spacing.lg,
+    paddingTop: Spacing.md,
     paddingBottom: Spacing.md,
     paddingHorizontal: Spacing.lg,
     backgroundColor: Colors.surface,
@@ -248,42 +217,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.lg,
     paddingBottom: Spacing.xxl,
-  },
-  footer: {
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.lg,
-    paddingTop: Spacing.sm,
-    gap: Spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-    backgroundColor: Colors.background,
-  },
-  hint: { ...Typography.caption, textAlign: 'center', color: Colors.textMuted },
-  scrambleHint: {
-    ...Typography.body,
-    textAlign: 'center',
-    color: Colors.textMuted,
-    fontStyle: 'italic',
-    paddingVertical: Spacing.md,
-  },
-  stopButton: {
-    backgroundColor: Colors.primary,
-    borderRadius: BorderRadius.lg,
-    paddingVertical: Spacing.lg,
-    alignItems: 'center',
-  },
-  stopButtonDisabled: {
-    backgroundColor: Colors.surfaceLight,
-  },
-  stopButtonText: {
-    ...Typography.heading3,
-    color: Colors.white,
-    fontSize: 22,
-  },
-  hostNote: {
-    ...Typography.caption,
-    color: Colors.warning,
-    textAlign: 'center',
   },
 });
 
